@@ -1,6 +1,7 @@
 import React from "react";
-import { Button, Form, FormGroup, Label, Input, FormText, Container } from 'reactstrap';
+import { Button, Form, FormGroup, Label, Input, Container, UncontrolledAlert } from 'reactstrap';
 import axios from "axios";
+import './Application.css';
 
 class Application extends React.Component {
   constructor(props) {
@@ -10,7 +11,9 @@ class Application extends React.Component {
       username: '',
       gender: '',
       age: 0,
-      applicationText: ''
+      applicationText: '',
+      errorMsg: '',
+      success: false
     };
   }
   onSubmit = (event) => {
@@ -23,20 +26,26 @@ class Application extends React.Component {
         gender: this.state.gender,
         age: parseInt(this.state.age),
         applicationText: this.state.applicationText
-
     })
     .then(res => {
       if (res.status === 200) {
-          alert("Successfully submitted. You should receive an email for details")
-      }else if(res.status === 500) {
-          alert("Internal server error. Please contact admin or try later")
-      }else if(res.status === 400) {
-          alert(res.data.message)
-      }
-    })
-    .catch(err => {
-        console.log(err)
-    })
+          this.setState({
+              success: true
+          })
+      }})
+    .catch(error => {
+        if (error.response) {
+            if(error.response.status === 400) {
+                this.setState({
+                    errorMsg: error.response.data.message
+                })
+            }else {
+                this.setState({
+                    errorMsg: "Internal server error. Please try later or contact server admin"
+                })
+            }
+        }
+    });
   }
 
   handleInputChange = (event) => {
@@ -45,10 +54,36 @@ class Application extends React.Component {
       [name] : value
     });
   }
-    render() {
-        return (
+render() {
+    let messageBlock
+    if(this.state.errorMsg) {
+        messageBlock = (
+            <UncontrolledAlert color="danger" fade={false}>
+            <span className="alert-inner--icon">
+                <i className="ni ni-like-2" />
+            </span>{" "}
+            <span className="alert-inner--text">
+                <strong>Error</strong> { this.state.errorMsg }
+            </span>
+            </UncontrolledAlert>
+        )
+    }else if(this.state.success) {
+        messageBlock = (
+            <UncontrolledAlert color="success" fade={false}>
+            <span className="alert-inner--icon">
+                <i className="ni ni-like-2" />
+            </span>{" "}
+            <span className="alert-inner--text">
+                <strong>Success</strong> Your application is on the way.. Check the email for confirmation.
+            </span>
+            </UncontrolledAlert>
+        )
+    }
+    return (
         <>
     <Container>
+    <h2 className="text-center">Whitelist Requst Form</h2>
+    { messageBlock }
     <Form role="form" onSubmit={this.onSubmit}>
       <FormGroup>
         <Label>Email</Label>
@@ -80,11 +115,12 @@ class Application extends React.Component {
           I've read the server rules and I agree to submit my application to join
         </Label>
       </FormGroup>
-      <Button type="submit">Submit Application</Button>
+      <Button color="primary"  type="submit"  size="lg">
+        Submit Application
+      </Button>
     </Form>
     </Container>
         </>
-
         );
     }
   }

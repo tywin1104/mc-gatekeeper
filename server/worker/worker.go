@@ -83,10 +83,17 @@ func main() {
 					"body": whitelistRequest,
 				}).Info("Received a new message")
 				// Concrete actions to do when receiving task from message queue
-				// Send application confirmation email to user
-				emailConfirmation(whitelistRequest)
-				// Send approval request emails to op(s)
-				emailToOps(whitelistRequest)
+				// From the message body to determine which type of work to do
+				if whitelistRequest.Status == "Approved" || whitelistRequest.Status == "Denied" {
+					// Need to send update status back to the user
+					emailDecision(whitelistRequest)
+				} else {
+					// Need to handle new request
+					// Send application confirmation email to user
+					emailConfirmation(whitelistRequest)
+					// Send approval request emails to op(s)
+					emailToOps(whitelistRequest)
+				}
 
 				d.Ack(false)
 			}
@@ -95,6 +102,29 @@ func main() {
 
 	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
 	<-forever
+}
+
+func emailDecision(whitelistRequest types.WhitelistRequest) {
+	var subject string
+	var template string
+	if whitelistRequest.Status == "Approved" {
+		subject = "Your request to join the server is approved"
+		template = "../mailer/templates/approve.html"
+	} else {
+		subject = "Update regarding your request to join the server"
+		template = "../mailer/templates/deny.html"
+	}
+	err := mailer.Send(template, map[string]string{"link": "www.checkstatus.com/" + whitelistRequest.Username}, subject, whitelistRequest.Email)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"recipent": whitelistRequest.Email,
+			"err":      err,
+		}).Error("Failed to send decision email")
+	} else {
+		log.WithFields(log.Fields{
+			"recipent": whitelistRequest.Email,
+		}).Info("Decision email sent")
+	}
 }
 
 func emailConfirmation(whitelistRequest types.WhitelistRequest) {

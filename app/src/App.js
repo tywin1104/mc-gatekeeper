@@ -7,6 +7,8 @@ import {
   Link
 } from "react-router-dom";
 import Application from './components/Application'
+import CheckStatus from './components/CheckStatus'
+import AdminAction from './components/AdminAction'
 
 function App() {
   return (
@@ -18,25 +20,21 @@ function App() {
               <Link to="/">Application</Link>
             </li>
             <li>
-              <Link to="/about">About</Link>
+              <Link to="/status">About</Link>
             </li>
             <li>
-              <Link to="/users">Users</Link>
+              <Link to="/action">Users</Link>
             </li>
           </ul>
         </nav>
 
         <Switch>
-          <Route path="/about">
-            {/* <About /> */}
-            <h1>first route</h1>
+          <Route path="/status/:id" exact component={CheckStatus}>
           </Route>
-          <Route path="/users">
-            {/* <Users /> */}
-            <h1>second route</h1>
+          <Route path="/action/:id" exact component={AdminAction}>
           </Route>
           <Route path="/">
-            <Application  ></Application>
+            <Application></Application>
           </Route>
         </Switch>
       </div>

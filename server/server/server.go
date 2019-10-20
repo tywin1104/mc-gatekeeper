@@ -38,14 +38,18 @@ func (svc *Service) Listen(port string) {
 	s.HandleFunc("/", getRequestsHandler(svc.dbService)).Methods("GET")
 	s.HandleFunc("/", createRequestHandler(svc.dbService, svc.broker)).Methods("POST")
 	s.HandleFunc("/{requestId}", getRequestByIDHandler(svc.dbService)).Methods("GET")
-	s.HandleFunc("/{requestId}", patchRequestHandler(svc.dbService)).Methods("PATCH")
+	s.HandleFunc("/{requestId}", patchRequestHandler(svc.dbService, svc.broker)).Methods("PATCH")
 	s.HandleFunc("/{requestId}", deleteRequestHandler(svc.dbService)).Methods("DELETE")
 	log.WithFields(log.Fields{
 		"port": port,
 	}).Info("The API http server starts listening")
 
 	// Configure CORS
-	handler := cors.Default().Handler(svc.router)
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST", "PATCH"},
+	})
+	handler := c.Handler(svc.router)
 	// log.Error(http.ListenAndServe(port, svc.router))
 	log.Error(http.ListenAndServe(port, handler))
 }
@@ -147,7 +151,7 @@ func createRequestHandler(dbService *db.Service, broker *broker.Service) func(w 
 	}
 }
 
-func patchRequestHandler(dbService *db.Service) func(w http.ResponseWriter, r *http.Request) {
+func patchRequestHandler(dbService *db.Service, broker *broker.Service) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestID := mux.Vars(r)["requestId"]
 		_id, _ := primitive.ObjectIDFromHex(requestID)
@@ -159,7 +163,7 @@ func patchRequestHandler(dbService *db.Service) func(w http.ResponseWriter, r *h
 		}
 		// Only update a request if its status is still pending
 		foundRequests, err := dbService.GetRequests(-1, bson.M{
-			"_id":    requestID,
+			"_id":    _id,
 			"status": "Pending",
 		})
 		if err != nil {
@@ -178,6 +182,20 @@ func patchRequestHandler(dbService *db.Service) func(w http.ResponseWriter, r *h
 					"requestID": requestID,
 				}).Error("Unable to update request")
 				return
+			}
+			// Add task to broker so that user will receive status update email
+			// convert bson.M to struct
+			var updatedRequestObj types.WhitelistRequest
+			bsonBytes, _ := bson.Marshal(updatedRequest)
+			bson.Unmarshal(bsonBytes, &updatedRequestObj)
+
+			// Publish the updatedRequestObj to broker
+			err = broker.Publish(updatedRequestObj)
+			if err != nil {
+				log.WithFields(log.Fields{
+					"error":      err,
+					"newRequest": updatedRequest,
+				}).Error("Unable to publish message to broker")
 			}
 			w.Header().Set("Content-Type", "application/json")
 			msg := map[string]interface{}{"message": "success", "updated": updatedRequest}
@@ -210,4 +228,3 @@ func deleteRequestHandler(dbService *db.Service) func(w http.ResponseWriter, r *
 		json.NewEncoder(w).Encode(msg)
 	}
 }
-
