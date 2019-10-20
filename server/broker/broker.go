@@ -9,17 +9,61 @@ import (
 	"github.com/tywin1104/mc-whitelist/types"
 )
 
+// Service represents broker(message queue) service
 type Service struct {
 	conn    *amqp.Connection
 	Channel *amqp.Channel
 	queue   amqp.Queue
 }
 
-// NewService
+// NewService set up all thing rabbitMq related
 func NewService(conn *amqp.Connection, queueName string) (*Service, error) {
 	ch, err := conn.Channel()
 	if err != nil {
 		return nil, errors.New("Failed to open a channel")
+	}
+
+	args := make(amqp.Table)
+	// Dead letter exchange name
+	args["x-dead-letter-exchange"] = "dead.letter.ex"
+	// Default message ttl 24 hours
+	args["x-message-ttl"] = int32(86400)
+
+	// Declare the dead letter exchange
+	err = ch.ExchangeDeclare(
+		"dead.letter.ex", // name
+		"fanout",         // type
+		true,             // durable
+		false,            // auto-deleted
+		false,            // internal
+		false,            // no-wait
+		nil,              // arguments
+	)
+	if err != nil {
+		return nil, err
+	}
+	// Declare the dead letter queue
+	_, err = ch.QueueDeclare(
+		"dead.letter.queue", // name
+		true,                // durable
+		false,               // delete when unused
+		false,               // exclusive
+		false,               // no-wait
+		args,                // arguments
+	)
+	if err != nil {
+		return nil, err
+	}
+	// Bind dead letter exchange to dead letter queue
+	err = ch.QueueBind(
+		"dead.letter.queue", // queue name
+		"",                  // routing key
+		"dead.letter.ex",    // exchange
+		false,
+		nil,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	q, err := ch.QueueDeclare(
@@ -28,7 +72,7 @@ func NewService(conn *amqp.Connection, queueName string) (*Service, error) {
 		false,     // delete when unused
 		false,     // exclusive
 		false,     // no-wait
-		nil,       // arguments
+		args,      // arguments
 	)
 	if err != nil {
 		return nil, errors.New("Failed to declare the queue")
@@ -40,7 +84,7 @@ func NewService(conn *amqp.Connection, queueName string) (*Service, error) {
 	}, nil
 }
 
-// Publish
+// Publish a whitelistRequest message for the queue to consume
 func (s *Service) Publish(message types.WhitelistRequest) error {
 	encodedMessage, err := serialize(message)
 	if err != nil {

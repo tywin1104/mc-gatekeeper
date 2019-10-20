@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
 	"github.com/tywin1104/mc-whitelist/broker"
 	"github.com/tywin1104/mc-whitelist/db"
@@ -42,7 +43,11 @@ func (svc *Service) Listen(port string) {
 	log.WithFields(log.Fields{
 		"port": port,
 	}).Info("The API http server starts listening")
-	log.Error(http.ListenAndServe(port, svc.router))
+
+	// Configure CORS
+	handler := cors.Default().Handler(svc.router)
+	// log.Error(http.ListenAndServe(port, svc.router))
+	log.Error(http.ListenAndServe(port, handler))
 }
 
 func getRequestsHandler(dbService *db.Service) func(w http.ResponseWriter, r *http.Request) {
@@ -92,12 +97,12 @@ func createRequestHandler(dbService *db.Service, broker *broker.Service) func(w 
 		var newRequest types.WhitelistRequest
 		reqBody, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "Unable to read request body", http.StatusBadRequest)
+			http.Error(w, "Unable to read request body", http.StatusInternalServerError)
 			return
 		}
 		err = json.Unmarshal(reqBody, &newRequest)
 		if err != nil {
-			http.Error(w, "Unable to unmarshal request body", http.StatusBadRequest)
+			http.Error(w, "Unable to unmarshal request body", http.StatusInternalServerError)
 			return
 		}
 
@@ -205,3 +210,4 @@ func deleteRequestHandler(dbService *db.Service) func(w http.ResponseWriter, r *
 		json.NewEncoder(w).Encode(msg)
 	}
 }
+

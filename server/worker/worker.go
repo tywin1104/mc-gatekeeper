@@ -12,7 +12,9 @@ import (
 
 func failOnError(err error, msg string) {
 	if err != nil {
-		log.Errorf("%s: %s", msg, err)
+		log.WithFields(log.Fields{
+			"err": err,
+		}).Error(msg)
 	}
 }
 
@@ -31,13 +33,19 @@ func main() {
 	failOnError(err, "Failed to open a channel")
 	defer ch.Close()
 
+	args := make(amqp.Table)
+	// Dead letter exchange name
+	args["x-dead-letter-exchange"] = "dead.letter.ex"
+	// Default message ttl 24 hours
+	args["x-message-ttl"] = int32(86400)
+
 	q, err := ch.QueueDeclare(
-		"whitelist_task_queue", // name
-		true,                   // durable
-		false,                  // delete when unused
-		false,                  // exclusive
-		false,                  // no-wait
-		nil,                    // arguments
+		"whitelist.request.queue", // name
+		true,                      // durable
+		false,                     // delete when unused
+		false,                     // exclusive
+		false,                     // no-wait
+		args,                      // arguments
 	)
 	failOnError(err, "Failed to declare a queue")
 
@@ -55,7 +63,7 @@ func main() {
 		false,  // exclusive
 		false,  // no-local
 		false,  // no-wait
-		nil,    // args
+		args,   // args
 	)
 	failOnError(err, "Failed to register a consumer")
 
@@ -63,22 +71,25 @@ func main() {
 
 	go func() {
 		for d := range msgs {
-			log.WithFields(log.Fields{
-				"body": d.Body,
-			}).Info("Received a new message")
 			whitelistRequest, err := deserialize(d.Body)
 			if err != nil {
 				log.WithFields(log.Fields{
 					"messageBody": d.Body,
 				}).Error("Unable to decode message into whitelistRequest")
-			}
-			// Concrete actions to do when receiving task from message queue
-			// Send application confirmation email to user
-			emailConfirmation(whitelistRequest)
-			// Send approval request emails to op(s)
-			emailToOps(whitelistRequest)
+				// Unable to process this message, put to the dead-letter queue
+				d.Nack(false, false)
+			} else {
+				log.WithFields(log.Fields{
+					"body": whitelistRequest,
+				}).Info("Received a new message")
+				// Concrete actions to do when receiving task from message queue
+				// Send application confirmation email to user
+				emailConfirmation(whitelistRequest)
+				// Send approval request emails to op(s)
+				emailToOps(whitelistRequest)
 
-			d.Ack(false)
+				d.Ack(false)
+			}
 		}
 	}()
 
@@ -87,8 +98,8 @@ func main() {
 }
 
 func emailConfirmation(whitelistRequest types.WhitelistRequest) {
-	subject := "[Action Required] Whitelist request from" + whitelistRequest.Username
-	err := mailer.Send("../mailer/templates/template.html", map[string]string{"link": "www.checkstatus.com/" + whitelistRequest.Username}, subject, whitelistRequest.Email)
+	subject := "Your request to join the server has been received"
+	err := mailer.Send("../mailer/templates/confirmation.html", map[string]string{"link": "www.checkstatus.com/" + whitelistRequest.Username}, subject, whitelistRequest.Email)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"recipent": whitelistRequest.Email,
@@ -102,9 +113,9 @@ func emailConfirmation(whitelistRequest types.WhitelistRequest) {
 }
 
 func emailToOps(whitelistRequest types.WhitelistRequest) {
-	subject := "[Action Required] Whitelist request from" + whitelistRequest.Username
+	subject := "[Action Required] Whitelist request from " + whitelistRequest.Username
 	for _, op := range ops {
-		err := mailer.Send("../mailer/templates/template.html", map[string]string{"link": "www.approvewhitelist.com/" + op}, subject, op)
+		err := mailer.Send("../mailer/templates/ops.html", map[string]string{"link": "www.approvewhitelist.com/" + op}, subject, op)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"recipent": op,

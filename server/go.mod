@@ -9,6 +9,7 @@ require (
 	github.com/gorilla/mux v1.6.2
 	github.com/jinzhu/gorm v1.9.11
 	github.com/prometheus/common v0.2.0
+	github.com/rs/cors v1.7.0
 	github.com/sirupsen/logrus v1.2.0
 	github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c // indirect

@@ -40,7 +40,7 @@ func main() {
 	}
 	log.Info("RabbitMQ connection established")
 	defer conn.Close()
-	broker, err := broker.NewService(conn, "whitelist_task_queue")
+	broker, err := broker.NewService(conn, "whitelist.request.queue")
 	if err != nil {
 		panic("Unable to set up broker")
 	}
