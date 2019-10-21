@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -190,6 +191,7 @@ func patchRequestHandler(dbService *db.Service, broker *broker.Service) func(w h
 			bson.Unmarshal(bsonBytes, &updatedRequestObj)
 
 			// Publish the updatedRequestObj to broker
+			fmt.Println("new status: " + updatedRequestObj.Status)
 			err = broker.Publish(updatedRequestObj)
 			if err != nil {
 				log.WithFields(log.Fields{

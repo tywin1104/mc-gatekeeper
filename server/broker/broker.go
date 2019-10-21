@@ -27,7 +27,7 @@ func NewService(conn *amqp.Connection, queueName string) (*Service, error) {
 	// Dead letter exchange name
 	args["x-dead-letter-exchange"] = "dead.letter.ex"
 	// Default message ttl 24 hours
-	args["x-message-ttl"] = int32(86400)
+	args["x-message-ttl"] = int32(8.64e+7)
 
 	// Declare the dead letter exchange
 	err = ch.ExchangeDeclare(
@@ -49,7 +49,7 @@ func NewService(conn *amqp.Connection, queueName string) (*Service, error) {
 		false,               // delete when unused
 		false,               // exclusive
 		false,               // no-wait
-		args,                // arguments
+		nil,                 // arguments
 	)
 	if err != nil {
 		return nil, err
