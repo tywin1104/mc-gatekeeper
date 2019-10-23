@@ -9,8 +9,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/tywin1104/mc-whitelist/broker"
+	"github.com/tywin1104/mc-whitelist/config"
 	"github.com/tywin1104/mc-whitelist/db"
 	"github.com/tywin1104/mc-whitelist/types"
 	"go.mongodb.org/mongo-driver/bson"
@@ -19,34 +20,40 @@ import (
 
 // Service represents struct that deals with database level operations
 type Service struct {
-	dbService  *db.Service
-	router     *mux.Router
-	broker     *broker.Service
-	passPhrase string
+	dbService *db.Service
+	router    *mux.Router
+	broker    *broker.Service
+	c         *config.Config
+	logger    *logrus.Logger
 }
 
 // NewService create new mongoDb service that handles database level operations
-func NewService(db *db.Service, broker *broker.Service, passPhrase string) *Service {
+func NewService(db *db.Service, broker *broker.Service, c *config.Config, logger *logrus.Logger) *Service {
 	return &Service{
-		dbService:  db,
-		router:     mux.NewRouter().StrictSlash(true),
-		broker:     broker,
-		passPhrase: passPhrase,
+		dbService: db,
+		router:    mux.NewRouter().StrictSlash(true),
+		broker:    broker,
+		c:         c,
+		logger:    logger,
 	}
 }
 
 // Listen opens up the http port for REST API and register all routes
 func (svc *Service) Listen(port string) {
+	log := svc.logger
 	s := svc.router.PathPrefix("/api/v1/requests").Subrouter()
-	s.HandleFunc("/", getRequestsHandler(svc.dbService)).Methods("GET")
-	s.HandleFunc("/", createRequestHandler(svc.dbService, svc.broker)).Methods("POST")
-	s.HandleFunc("/{requestIdEncoded}", getRequestByIDHandler(svc.dbService, svc.passPhrase)).Methods("GET")
-	s.HandleFunc("/{requestIdEncoded}", patchRequestHandler(svc.dbService, svc.broker, svc.passPhrase)).Methods("PATCH").Queries("adm", "{adm}")
-	s.HandleFunc("/{requestId}", deleteRequestHandler(svc.dbService)).Methods("DELETE")
-	log.WithFields(log.Fields{
+	s.HandleFunc("/", getRequestsHandler(svc.dbService, log)).Methods("GET")
+	s.HandleFunc("/", createRequestHandler(svc.dbService, svc.broker, log)).Methods("POST")
+	s.HandleFunc("/{requestIdEncoded}", getRequestByIDHandler(svc.dbService, svc.c.PassPhrase, log)).Methods("GET")
+	s.HandleFunc("/{requestIdEncoded}", patchRequestHandler(svc.dbService, svc.broker, svc.c.PassPhrase, log)).Methods("PATCH").Queries("adm", "{adm}")
+	s.HandleFunc("/{requestId}", deleteRequestHandler(svc.dbService, log)).Methods("DELETE")
+
+	// Endpoint to verify validity of admin token for frontend to consume
+	r := svc.router.PathPrefix("/api/v1/verify").Subrouter()
+	r.HandleFunc("/", verifyAdminTokenHandler(svc.c.PassPhrase, svc.c.Ops)).Methods("GET").Queries("adm", "{adm}")
+	log.WithFields(logrus.Fields{
 		"port": port,
 	}).Info("The API http server starts listening")
-
 	// Configure CORS
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
@@ -57,12 +64,12 @@ func (svc *Service) Listen(port string) {
 	log.Error(http.ListenAndServe(port, handler))
 }
 
-func getRequestsHandler(dbService *db.Service) func(w http.ResponseWriter, r *http.Request) {
+func getRequestsHandler(dbService *db.Service, log *logrus.Logger) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requests, err := dbService.GetRequests(-1, bson.D{{}})
 		if err != nil {
 			http.Error(w, "Unable to get all requests", http.StatusInternalServerError)
-			log.WithFields(log.Fields{
+			log.WithFields(logrus.Fields{
 				"err": err.Error(),
 			}).Error("Unable to get all requests")
 			return
@@ -74,11 +81,11 @@ func getRequestsHandler(dbService *db.Service) func(w http.ResponseWriter, r *ht
 	}
 }
 
-func getRequestByIDHandler(dbService *db.Service, passphrase string) func(w http.ResponseWriter, r *http.Request) {
+func getRequestByIDHandler(dbService *db.Service, passphrase string, log *logrus.Logger) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestID, err := utils.DecodeAndDecrypt(mux.Vars(r)["requestIdEncoded"], passphrase)
 		if err != nil {
-			log.WithFields(log.Fields{
+			log.WithFields(logrus.Fields{
 				"err":      err.Error(),
 				"urlParam": mux.Vars(r)["requestIdEncoded"],
 			}).Error("Unable to decode requestID token")
@@ -90,7 +97,7 @@ func getRequestByIDHandler(dbService *db.Service, passphrase string) func(w http
 		requests, err := dbService.GetRequests(1, bson.D{{"_id", _id}})
 		if err != nil {
 			http.Error(w, "Unable to get reqeuest by ID", http.StatusInternalServerError)
-			log.WithFields(log.Fields{
+			log.WithFields(logrus.Fields{
 				"err":       err.Error(),
 				"requestID": requestID,
 			}).Error("Unable to get reqeuest by ID")
@@ -107,7 +114,7 @@ func getRequestByIDHandler(dbService *db.Service, passphrase string) func(w http
 	}
 }
 
-func createRequestHandler(dbService *db.Service, broker *broker.Service) func(w http.ResponseWriter, r *http.Request) {
+func createRequestHandler(dbService *db.Service, broker *broker.Service, log *logrus.Logger) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Validating request body
 		var newRequest types.WhitelistRequest
@@ -149,7 +156,7 @@ func createRequestHandler(dbService *db.Service, broker *broker.Service) func(w 
 		newRequestID, err := dbService.CreateRequest(newRequest)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
-			log.WithFields(log.Fields{
+			log.WithFields(logrus.Fields{
 				"err": err.Error(),
 			}).Error("Unable to create new request")
 			return
@@ -159,7 +166,7 @@ func createRequestHandler(dbService *db.Service, broker *broker.Service) func(w 
 		newRequest.ID = newRequestID
 		err = broker.Publish(newRequest)
 		if err != nil {
-			log.WithFields(log.Fields{
+			log.WithFields(logrus.Fields{
 				"error":      err,
 				"newRequest": newRequest,
 			}).Error("Unable to publish message to broker")
@@ -171,11 +178,11 @@ func createRequestHandler(dbService *db.Service, broker *broker.Service) func(w 
 	}
 }
 
-func patchRequestHandler(dbService *db.Service, broker *broker.Service, passphrase string) func(w http.ResponseWriter, r *http.Request) {
+func patchRequestHandler(dbService *db.Service, broker *broker.Service, passphrase string, log *logrus.Logger) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestID, err := utils.DecodeAndDecrypt(mux.Vars(r)["requestIdEncoded"], passphrase)
 		if err != nil {
-			log.WithFields(log.Fields{
+			log.WithFields(logrus.Fields{
 				"err":      err.Error(),
 				"urlParam": mux.Vars(r)["requestIdEncoded"],
 			}).Error("Unable to decode requestID token")
@@ -192,7 +199,7 @@ func patchRequestHandler(dbService *db.Service, broker *broker.Service, passphra
 		admToken := keys[0]
 		opEmail, err := utils.DecodeAndDecrypt(admToken, passphrase)
 		if err != nil {
-			log.WithFields(log.Fields{
+			log.WithFields(logrus.Fields{
 				"err":      err.Error(),
 				"urlParam": mux.Vars(r)["requestIdEncoded"],
 			}).Error("Unable to decode adm token")
@@ -225,7 +232,7 @@ func patchRequestHandler(dbService *db.Service, broker *broker.Service, passphra
 			})
 			if err != nil {
 				http.Error(w, "Unable to update request", http.StatusInternalServerError)
-				log.WithFields(log.Fields{
+				log.WithFields(logrus.Fields{
 					"err":             err.Error(),
 					"requestID":       requestID,
 					"requestedChange": requestedChange,
@@ -241,7 +248,7 @@ func patchRequestHandler(dbService *db.Service, broker *broker.Service, passphra
 			// Publish the updatedRequestObj to broker
 			err = broker.Publish(updatedRequestObj)
 			if err != nil {
-				log.WithFields(log.Fields{
+				log.WithFields(logrus.Fields{
 					"error":             err,
 					"updatedReqeustObj": updatedRequestObj,
 				}).Error("Unable to publish message to broker")
@@ -258,14 +265,14 @@ func patchRequestHandler(dbService *db.Service, broker *broker.Service, passphra
 	}
 }
 
-func deleteRequestHandler(dbService *db.Service) func(w http.ResponseWriter, r *http.Request) {
+func deleteRequestHandler(dbService *db.Service, log *logrus.Logger) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestID := mux.Vars(r)["requestId"]
 		_id, _ := primitive.ObjectIDFromHex(requestID)
 		deleteCount, err := dbService.DeleteRequest(bson.D{{"_id", _id}})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
-			log.WithFields(log.Fields{
+			log.WithFields(logrus.Fields{
 				"err":       err.Error(),
 				"requestID": requestID,
 			}).Error("Unable to delete request")
@@ -275,5 +282,34 @@ func deleteRequestHandler(dbService *db.Service) func(w http.ResponseWriter, r *
 		msg := map[string]interface{}{"message": "success", "deleteCount": deleteCount}
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(msg)
+	}
+}
+
+func verifyAdminTokenHandler(passphrase string, ops []string) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Get admin info from ?adm=<EncodedAdminEmail>
+		keys, ok := r.URL.Query()["adm"]
+
+		if !ok || len(keys[0]) < 1 {
+			http.Error(w, "adm token is missing", http.StatusBadRequest)
+			return
+		}
+		admToken := keys[0]
+		admEmail, err := utils.DecodeAndDecrypt(admToken, passphrase)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		valid := false
+		for _, op := range ops {
+			if admEmail == op {
+				valid = true
+			}
+		}
+		if !valid {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
 	}
 }

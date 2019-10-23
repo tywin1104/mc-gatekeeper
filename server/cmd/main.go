@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"github.com/tywin1104/mc-whitelist/broker"
 	"github.com/tywin1104/mc-whitelist/config"
@@ -15,12 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func init() {
-	// Set up logrus logger
-	// log.SetFormatter(&log.JSONFormatter)
-	log.SetOutput(os.Stdout)
-	log.SetLevel(log.InfoLevel)
-}
+var log = logrus.New()
 
 func main() {
 
@@ -28,9 +23,23 @@ func main() {
 	if err != nil {
 		log.Fatal("Unable to load config: " + err.Error())
 	}
+
+	// Set up logrus logger
+	log.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
+	log.SetOutput(os.Stdout)
+	log.SetLevel(logrus.InfoLevel)
+	file, err := os.OpenFile(config.ServerLogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err == nil {
+		log.Out = file
+	} else {
+		log.Info("Failed to log to file, using default stderr")
+	}
+
+	log.Info("Server is being started.......")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(config.MongodbConnStr))
 
 	if err != nil {
@@ -53,6 +62,6 @@ func main() {
 
 	// Set up http REST API server
 	dbSvc := db.NewService(client)
-	httpServer := server.NewService(dbSvc, broker, config.PassPhrase)
+	httpServer := server.NewService(dbSvc, broker, config, log)
 	httpServer.Listen(config.APIPort)
 }

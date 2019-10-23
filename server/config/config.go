@@ -19,6 +19,8 @@ type Config struct {
 	SMTPPassword    string   `yaml:"SMTPPassword"`
 	Ops             []string `yaml:",flow"`
 	PassPhrase      string   `yaml:"passphrase"`
+	WorkerLogFile   string   `yaml:"workerLogFile"`
+	ServerLogFile   string   `yaml:"serverLogFile"`
 }
 
 // LoadConfig loads config file

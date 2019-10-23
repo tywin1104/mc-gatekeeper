@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"os"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"github.com/tywin1104/mc-whitelist/config"
 	"github.com/tywin1104/mc-whitelist/mailer"
@@ -13,9 +14,11 @@ import (
 	"github.com/tywin1104/mc-whitelist/utils"
 )
 
+var log = logrus.New()
+
 func failOnError(err error, msg string) {
 	if err != nil {
-		log.WithFields(log.Fields{
+		log.WithFields(logrus.Fields{
 			"err": err,
 		}).Error(msg)
 	}
@@ -26,6 +29,19 @@ func main() {
 	if err != nil {
 		log.Fatal("Unable to load config: " + err.Error())
 	}
+
+	// Setup logger
+	log.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
+	log.SetLevel(logrus.InfoLevel)
+	file, err := os.OpenFile(config.WorkerLogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err == nil {
+		log.Out = file
+	} else {
+		log.Info("Failed to log to file, using default stderr")
+	}
+
 	ops := config.Ops
 	conn, err := amqp.Dial(config.RabbitmqConnStr)
 	failOnError(err, "Failed to connect to RabbitMQ")
@@ -75,14 +91,14 @@ func main() {
 		for d := range msgs {
 			whitelistRequest, err := deserialize(d.Body)
 			if err != nil {
-				log.WithFields(log.Fields{
+				log.WithFields(logrus.Fields{
 					"messageBody": d.Body,
 					"err":         err,
 				}).Error("Unable to decode message into whitelistRequest")
 				// Unable to process this message, put to the dead-letter queue
 				d.Nack(false, false)
 			} else {
-				log.WithFields(log.Fields{
+				log.WithFields(logrus.Fields{
 					"username": whitelistRequest.Username,
 					"status":   whitelistRequest.Status,
 					"ID":       whitelistRequest.ID,
@@ -94,7 +110,7 @@ func main() {
 					// Put message to dead letter queue for later investigation if unable to send decision email
 					err := emailDecision(whitelistRequest, config)
 					if err != nil {
-						log.WithFields(log.Fields{
+						log.WithFields(logrus.Fields{
 							"err":     err.Error(),
 							"message": whitelistRequest,
 						}).Error("Failed to send decision email")
@@ -109,7 +125,7 @@ func main() {
 					err := emailToOps(whitelistRequest, 1, ops, config)
 					if err != nil {
 						// If success count for sending ops emails less than minimum quoram, put to dead letter queue
-						log.WithFields(log.Fields{
+						log.WithFields(logrus.Fields{
 							"err":     err.Error(),
 							"message": whitelistRequest,
 						}).Error("Failed to reach required number of ops")
@@ -121,14 +137,14 @@ func main() {
 		}
 	}()
 
-	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
+	log.Printf(" [*] Worker start. Listening for messages..")
 	<-forever
 }
 
 func emailDecision(whitelistRequest types.WhitelistRequest, c *config.Config) error {
 	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), c.PassPhrase)
 	if err != nil {
-		log.WithFields(log.Fields{
+		log.WithFields(logrus.Fields{
 			"err": err,
 		}).Error("Failed to encode requestID Token")
 		return err
@@ -144,12 +160,12 @@ func emailDecision(whitelistRequest types.WhitelistRequest, c *config.Config) er
 	}
 	err = mailer.Send(template, map[string]string{"link": requestIDToken}, subject, whitelistRequest.Email, c)
 	if err != nil {
-		log.WithFields(log.Fields{
+		log.WithFields(logrus.Fields{
 			"recipent": whitelistRequest.Email,
 			"err":      err,
 		}).Error("Failed to send decision email")
 	} else {
-		log.WithFields(log.Fields{
+		log.WithFields(logrus.Fields{
 			"recipent": whitelistRequest.Email,
 		}).Info("Decision email sent")
 	}
@@ -160,19 +176,19 @@ func emailConfirmation(whitelistRequest types.WhitelistRequest, c *config.Config
 	subject := "Your request to join the server has been received"
 	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), c.PassPhrase)
 	if err != nil {
-		log.WithFields(log.Fields{
+		log.WithFields(logrus.Fields{
 			"err": err,
 		}).Error("Failed to encode requestID Token")
 		return err
 	}
 	err = mailer.Send("./mailer/templates/confirmation.html", map[string]string{"link": requestIDToken}, subject, whitelistRequest.Email, c)
 	if err != nil {
-		log.WithFields(log.Fields{
+		log.WithFields(logrus.Fields{
 			"recipent": whitelistRequest.Email,
 			"err":      err,
 		}).Error("Failed to send confirmation email")
 	} else {
-		log.WithFields(log.Fields{
+		log.WithFields(logrus.Fields{
 			"recipent": whitelistRequest.Email,
 		}).Info("Confirmation email sent")
 	}
@@ -184,7 +200,7 @@ func emailToOps(whitelistRequest types.WhitelistRequest, quoram int, ops []strin
 	successCount := 0
 	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), c.PassPhrase)
 	if err != nil {
-		log.WithFields(log.Fields{
+		log.WithFields(logrus.Fields{
 			"err": err,
 		}).Error("Failed to encode requestID Token")
 		return err
@@ -192,19 +208,19 @@ func emailToOps(whitelistRequest types.WhitelistRequest, quoram int, ops []strin
 	for _, op := range ops {
 		opEmailToken, err := utils.EncodeAndEncrypt(op, c.PassPhrase)
 		if err != nil {
-			log.WithFields(log.Fields{
+			log.WithFields(logrus.Fields{
 				"err": err,
 			}).Error("Failed to encode opEmail Token")
 			return err
 		}
 		err = mailer.Send("./mailer/templates/ops.html", map[string]string{"link": requestIDToken + "?adm=" + opEmailToken}, subject, op, c)
 		if err != nil {
-			log.WithFields(log.Fields{
+			log.WithFields(logrus.Fields{
 				"recipent": op,
 				"err":      err,
 			}).Error("Failed to send email to op")
 		} else {
-			log.WithFields(log.Fields{
+			log.WithFields(logrus.Fields{
 				"recipent": op,
 			}).Info("Action email sent to op")
 			successCount++
