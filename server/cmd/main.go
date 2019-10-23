@@ -54,6 +54,6 @@ func main() {
 
 	// Set up http REST API server
 	dbSvc := db.NewService(client)
-	httpServer := server.NewService(dbSvc, broker)
+	httpServer := server.NewService(dbSvc, broker, config.PassPhrase)
 	httpServer.Listen(config.APIPort)
 }

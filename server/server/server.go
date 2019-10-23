@@ -1,11 +1,14 @@
 package server
 
 import (
+	b64 "encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/tywin1104/mc-whitelist/utils"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -19,17 +22,19 @@ import (
 
 // Service represents struct that deals with database level operations
 type Service struct {
-	dbService *db.Service
-	router    *mux.Router
-	broker    *broker.Service
+	dbService  *db.Service
+	router     *mux.Router
+	broker     *broker.Service
+	passPhrase string
 }
 
 // NewService create new mongoDb service that handles database level operations
-func NewService(db *db.Service, broker *broker.Service) *Service {
+func NewService(db *db.Service, broker *broker.Service, passPhrase string) *Service {
 	return &Service{
-		dbService: db,
-		router:    mux.NewRouter().StrictSlash(true),
-		broker:    broker,
+		dbService:  db,
+		router:     mux.NewRouter().StrictSlash(true),
+		broker:     broker,
+		passPhrase: passPhrase,
 	}
 }
 
@@ -38,8 +43,8 @@ func (svc *Service) Listen(port string) {
 	s := svc.router.PathPrefix("/api/v1/requests").Subrouter()
 	s.HandleFunc("/", getRequestsHandler(svc.dbService)).Methods("GET")
 	s.HandleFunc("/", createRequestHandler(svc.dbService, svc.broker)).Methods("POST")
-	s.HandleFunc("/{requestId}", getRequestByIDHandler(svc.dbService)).Methods("GET")
-	s.HandleFunc("/{requestId}", patchRequestHandler(svc.dbService, svc.broker)).Methods("PATCH")
+	s.HandleFunc("/{requestIdEncoded}", getRequestByIDHandler(svc.dbService, svc.passPhrase)).Methods("GET")
+	s.HandleFunc("/{requestIdOpEncoded}", patchRequestHandler(svc.dbService, svc.broker, svc.passPhrase)).Methods("PATCH")
 	s.HandleFunc("/{requestId}", deleteRequestHandler(svc.dbService)).Methods("DELETE")
 	log.WithFields(log.Fields{
 		"port": port,
@@ -72,10 +77,25 @@ func getRequestsHandler(dbService *db.Service) func(w http.ResponseWriter, r *ht
 	}
 }
 
-func getRequestByIDHandler(dbService *db.Service) func(w http.ResponseWriter, r *http.Request) {
+func getRequestByIDHandler(dbService *db.Service, passphrase string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		requestID := mux.Vars(r)["requestId"]
-		_id, _ := primitive.ObjectIDFromHex(requestID)
+		decodedRequestID, err := b64.URLEncoding.DecodeString(mux.Vars(r)["requestIdEncoded"])
+		if err != nil {
+			log.WithFields(log.Fields{
+				"err":      err.Error(),
+				"urlParam": mux.Vars(r)["requestIdEncoded"],
+			}).Error("Unable to decode base64 request id from url path")
+			http.Error(w, "Unable to decode url path", http.StatusBadRequest)
+			return
+		}
+		requestID, err := utils.Decrypt(decodedRequestID, passphrase)
+		if err != nil {
+			log.Error("Unable to decrypt request id " + err.Error())
+			http.Error(w, "Unable to decrypt url path", http.StatusBadRequest)
+			return
+		}
+
+		_id, _ := primitive.ObjectIDFromHex(string(requestID))
 		requests, err := dbService.GetRequests(1, bson.D{{"_id", _id}})
 		if err != nil {
 			http.Error(w, "Unable to get reqeuest by ID", http.StatusInternalServerError)
@@ -152,10 +172,35 @@ func createRequestHandler(dbService *db.Service, broker *broker.Service) func(w 
 	}
 }
 
-func patchRequestHandler(dbService *db.Service, broker *broker.Service) func(w http.ResponseWriter, r *http.Request) {
+func patchRequestHandler(dbService *db.Service, broker *broker.Service, passphrase string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		requestID := mux.Vars(r)["requestId"]
-		_id, _ := primitive.ObjectIDFromHex(requestID)
+		decodedRequestID, err := b64.URLEncoding.DecodeString(mux.Vars(r)["requestIdOpEncoded"])
+		if err != nil {
+			log.WithFields(log.Fields{
+				"err":      err.Error(),
+				"urlParam": mux.Vars(r)["requestIdOpEncoded"],
+			}).Error("Unable to decode base64 requestIdOpEncoded from url path")
+			http.Error(w, "Unable to decode url path", http.StatusBadRequest)
+			return
+		}
+		requestIDOp, err := utils.Decrypt(decodedRequestID, passphrase)
+		if err != nil {
+			log.Error("Unable to decrypt requestIdOpEncoded " + err.Error())
+			http.Error(w, "Unable to decrypt url path", http.StatusBadRequest)
+			return
+		}
+		words := strings.Split(string(requestIDOp), " ")
+		if len(words) != 2 {
+			log.WithFields(log.Fields{
+				"requestIDOp": words,
+			}).Error("Invalid format of requestIDOp string")
+			http.Error(w, "Unable to decrypt url path", http.StatusBadRequest)
+			return
+		}
+
+		requestID := words[0]
+		opEmail := words[1]
+		_id, _ := primitive.ObjectIDFromHex(words[0])
 		var requestedChange bson.M
 		reqBody, err := ioutil.ReadAll(r.Body)
 		if err != nil {
@@ -173,6 +218,8 @@ func patchRequestHandler(dbService *db.Service, broker *broker.Service) func(w h
 		}
 		if len(foundRequests) > 0 {
 			json.Unmarshal(reqBody, &requestedChange)
+			// Going to update the admin field of the request to whoever perform the action through UI
+			requestedChange["admin"] = opEmail
 			updatedRequest, err := dbService.UpdateRequest(bson.D{{"_id", _id}}, bson.M{
 				"$set": requestedChange,
 			})
@@ -191,7 +238,6 @@ func patchRequestHandler(dbService *db.Service, broker *broker.Service) func(w h
 			bson.Unmarshal(bsonBytes, &updatedRequestObj)
 
 			// Publish the updatedRequestObj to broker
-			fmt.Println("new status: " + updatedRequestObj.Status)
 			err = broker.Publish(updatedRequestObj)
 			if err != nil {
 				log.WithFields(log.Fields{
