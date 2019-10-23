@@ -19,12 +19,6 @@ function App() {
             <li>
               <Link to="/">Application</Link>
             </li>
-            <li>
-              <Link to="/status">About</Link>
-            </li>
-            <li>
-              <Link to="/action">Users</Link>
-            </li>
           </ul>
         </nav>
 

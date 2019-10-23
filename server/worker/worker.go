@@ -85,6 +85,7 @@ func main() {
 				log.WithFields(log.Fields{
 					"username": whitelistRequest.Username,
 					"status":   whitelistRequest.Status,
+					"ID":       whitelistRequest.ID,
 				}).Info("Received new task")
 				// Concrete actions to do when receiving task from message queue
 				// From the message body to determine which type of work to do
@@ -125,6 +126,13 @@ func main() {
 }
 
 func emailDecision(whitelistRequest types.WhitelistRequest, c *config.Config) error {
+	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), c.PassPhrase)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"err": err,
+		}).Error("Failed to encode requestID Token")
+		return err
+	}
 	var subject string
 	var template string
 	if whitelistRequest.Status == "Approved" {
@@ -134,8 +142,7 @@ func emailDecision(whitelistRequest types.WhitelistRequest, c *config.Config) er
 		subject = "Update regarding your request to join the server"
 		template = "./mailer/templates/deny.html"
 	}
-	encryptedRequestID := string(utils.Encrypt([]byte(whitelistRequest.ID.Hex()), c.PassPhrase))
-	err := mailer.Send(template, map[string]string{"link": encryptedRequestID}, subject, whitelistRequest.Email, c)
+	err = mailer.Send(template, map[string]string{"link": requestIDToken}, subject, whitelistRequest.Email, c)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"recipent": whitelistRequest.Email,
@@ -151,8 +158,14 @@ func emailDecision(whitelistRequest types.WhitelistRequest, c *config.Config) er
 
 func emailConfirmation(whitelistRequest types.WhitelistRequest, c *config.Config) error {
 	subject := "Your request to join the server has been received"
-	encryptedRequestID := string(utils.Encrypt([]byte(whitelistRequest.ID.Hex()), c.PassPhrase))
-	err := mailer.Send("./mailer/templates/confirmation.html", map[string]string{"link": encryptedRequestID}, subject, whitelistRequest.Email, c)
+	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), c.PassPhrase)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"err": err,
+		}).Error("Failed to encode requestID Token")
+		return err
+	}
+	err = mailer.Send("./mailer/templates/confirmation.html", map[string]string{"link": requestIDToken}, subject, whitelistRequest.Email, c)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"recipent": whitelistRequest.Email,
@@ -169,11 +182,22 @@ func emailConfirmation(whitelistRequest types.WhitelistRequest, c *config.Config
 func emailToOps(whitelistRequest types.WhitelistRequest, quoram int, ops []string, c *config.Config) error {
 	subject := "[Action Required] Whitelist request from " + whitelistRequest.Username
 	successCount := 0
-	encryptedRequestID := string(utils.Encrypt([]byte(whitelistRequest.ID.Hex()), c.PassPhrase))
+	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), c.PassPhrase)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"err": err,
+		}).Error("Failed to encode requestID Token")
+		return err
+	}
 	for _, op := range ops {
-		// route that passed to email template will contain the encrypted form of "requestID OpEmail"
-		encryptedOpEmail := string(utils.Encrypt([]byte(op), c.PassPhrase))
-		err := mailer.Send("./mailer/templates/ops.html", map[string]string{"link": encryptedRequestID + " " + encryptedOpEmail}, subject, op, c)
+		opEmailToken, err := utils.EncodeAndEncrypt(op, c.PassPhrase)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"err": err,
+			}).Error("Failed to encode opEmail Token")
+			return err
+		}
+		err = mailer.Send("./mailer/templates/ops.html", map[string]string{"link": requestIDToken + "?adm=" + opEmailToken}, subject, op, c)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"recipent": op,

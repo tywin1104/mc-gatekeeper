@@ -38,17 +38,17 @@ func (s *Service) Ping() {
 }
 
 // CreateRequest create new whitelistRequest
-func (s *Service) CreateRequest(newRequest types.WhitelistRequest) (interface{}, error) {
+func (s *Service) CreateRequest(newRequest types.WhitelistRequest) (primitive.ObjectID, error) {
 	collection := s.db.Database("mc-whitelist").Collection("requests")
 	newRequest.ID = primitive.NewObjectID()
 	// Set initial request status and attach timestamp
 	newRequest.Timestamp = time.Now()
 	newRequest.Status = "Pending"
-	insertResult, err := collection.InsertOne(context.TODO(), newRequest)
+	_, err := collection.InsertOne(context.TODO(), newRequest)
 	if err != nil {
-		return "", err
+		return primitive.ObjectID{}, err
 	}
-	return insertResult.InsertedID, nil
+	return newRequest.ID, nil
 }
 
 // GetRequests query for whitelistRequests in db

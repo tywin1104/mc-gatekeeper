@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/md5"
 	"crypto/rand"
+	b64 "encoding/base64"
 	"encoding/hex"
 	"io"
 )
@@ -15,8 +16,7 @@ func createHash(key string) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-// Encrypt encrypts the data using passphrase
-func Encrypt(data []byte, passphrase string) ([]byte, error) {
+func encrypt(data []byte, passphrase string) ([]byte, error) {
 	block, _ := aes.NewCipher([]byte(createHash(passphrase)))
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
@@ -30,8 +30,7 @@ func Encrypt(data []byte, passphrase string) ([]byte, error) {
 	return ciphertext, nil
 }
 
-// Decrypt decrypts the data using passphrase
-func Decrypt(data []byte, passphrase string) ([]byte, error) {
+func decrypt(data []byte, passphrase string) ([]byte, error) {
 	key := []byte(createHash(passphrase))
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -48,4 +47,27 @@ func Decrypt(data []byte, passphrase string) ([]byte, error) {
 		return nil, err
 	}
 	return plaintext, nil
+}
+
+// EncodeAndEncrypt encrypt the string data using passphrase and base64 encode
+func EncodeAndEncrypt(s, passphrase string) (string, error) {
+	bytes, err := encrypt([]byte(s), passphrase)
+	if err != nil {
+		return "", err
+	}
+	uEnc := b64.URLEncoding.EncodeToString(bytes)
+	return uEnc, nil
+}
+
+// DecodeAndDecrypt decode and decrypt base64 data
+func DecodeAndDecrypt(s, passphrase string) (string, error) {
+	sDec, err := b64.URLEncoding.DecodeString(s)
+	if err != nil {
+		return "", err
+	}
+	bytes, err := decrypt(sDec, passphrase)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
 }
