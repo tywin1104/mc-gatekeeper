@@ -25,17 +25,15 @@ func main() {
 	}
 
 	// Set up logrus logger
-	log.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-	})
+	log.SetFormatter(&logrus.JSONFormatter{})
 	log.SetOutput(os.Stdout)
 	log.SetLevel(logrus.InfoLevel)
-	file, err := os.OpenFile(config.ServerLogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err == nil {
-		log.Out = file
-	} else {
-		log.Info("Failed to log to file, using default stderr")
-	}
+	// file, err := os.OpenFile(config.ServerLogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	// if err == nil {
+	// 	log.Out = file
+	// } else {
+	// 	log.Info("Failed to log to file, using default stderr")
+	// }
 
 	log.Info("Server is being started.......")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

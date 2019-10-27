@@ -31,9 +31,7 @@ func main() {
 	}
 
 	// Setup logger
-	log.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-	})
+	log.SetFormatter(&logrus.JSONFormatter{})
 	log.SetLevel(logrus.InfoLevel)
 	file, err := os.OpenFile(config.WorkerLogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err == nil {
@@ -117,7 +115,7 @@ func main() {
 						d.Nack(false, false)
 					}
 					d.Ack(false)
-				} else if whitelistRequest.Status == "" {
+				} else if whitelistRequest.Status == "Pending" {
 					// Need to handle new request
 					// Send application confirmation email to user
 					emailConfirmation(whitelistRequest, config)

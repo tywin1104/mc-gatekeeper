@@ -5,9 +5,11 @@ go 1.12
 require (
 	cloud.google.com/go v0.37.4
 	github.com/BurntSushi/toml v0.3.1
+	github.com/felixge/httpsnoop v1.0.1
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/gorilla/mux v1.6.2
 	github.com/jinzhu/gorm v1.9.11
+	github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829
 	github.com/prometheus/common v0.2.0
 	github.com/rs/cors v1.7.0
 	github.com/sirupsen/logrus v1.2.0

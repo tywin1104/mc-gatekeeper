@@ -14,7 +14,6 @@ type Service struct {
 	conn    *amqp.Connection
 	Channel *amqp.Channel
 	queue   amqp.Queue
-			
 }
 
 // NewService set up all thing rabbitMq related

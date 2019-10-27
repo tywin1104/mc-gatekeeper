@@ -4,36 +4,36 @@ import {
   BrowserRouter as Router,
   Switch,
   Route,
-  Link
 } from "react-router-dom";
 import Application from './components/Application'
 import CheckStatus from './components/CheckStatus'
 import AdminAction from './components/AdminAction'
+import Dashboard from './components/Dashboard/Dashboard'
+import { loadReCaptcha } from 'react-recaptcha-google'
 
-function App() {
-  return (
-    <Router>
-      <div>
-        <nav>
-          <ul>
-            <li>
-              <Link to="/">Application</Link>
-            </li>
-          </ul>
-        </nav>
-
-        <Switch>
-          <Route path="/status/:id" exact component={CheckStatus}>
-          </Route>
-          <Route path="/action/:id" exact component={AdminAction}>
-          </Route>
-          <Route path="/">
-            <Application></Application>
-          </Route>
-        </Switch>
-      </div>
-    </Router>
-  );
+class App extends React.Component  {
+  componentDidMount() {
+    loadReCaptcha();
+  }
+  render() {
+    return (
+      <Router>
+        <div>
+          <Switch>
+            <Route path="/status/:id" exact component={CheckStatus}>
+            </Route>
+            <Route path="/action/:id" exact component={AdminAction}>
+            </Route>
+            <Route path="/dashboard" exact component={Dashboard}>
+            </Route>
+            <Route path="/">
+              <Application></Application>
+            </Route>
+          </Switch>
+        </div>
+      </Router>
+    );
+  }
 }
 
 export default App;

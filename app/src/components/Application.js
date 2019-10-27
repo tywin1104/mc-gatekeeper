@@ -1,31 +1,53 @@
 import React from "react";
-import { Button, Form, FormGroup, Label, Input, Container, UncontrolledAlert } from 'reactstrap';
+import { Button, Form, FormGroup, Label, Input, UncontrolledAlert, Jumbotron} from 'reactstrap';
 import axios from "axios";
 import './Application.css';
+import Container from '@material-ui/core/Container';
+import { ReCaptcha } from 'react-recaptcha-google'
 
 class Application extends React.Component {
-  constructor(props) {
-    super(props)
+  constructor(props, context) {
+    super(props, context);
+    this.onLoadRecaptcha = this.onLoadRecaptcha.bind(this);
+    this.verifyCallback = this.verifyCallback.bind(this);
     this.state = {
       email : '',
       username: '',
       gender: '',
-      age: 0,
+      age: '',
       applicationText: '',
       errorMsg: '',
-      success: false
+      success: false,
+      recaptchaVerified: false
     };
   }
+  componentDidMount() {
+    if (this.submitionCaptcha) {
+        console.log("started, just a second...")
+        this.submitionCaptcha.reset();
+    }
+  }
+  onLoadRecaptcha() {
+      if (this.submitionCaptcha) {
+          this.submitionCaptcha.reset();
+      }
+  }
+  verifyCallback(recaptchaToken) {
+    this.setState({recaptchaVerified: true})
+    // console.log(recaptchaToken, "<= your recaptcha token")
+  }
+
   onSubmit = (event) => {
-    let api_base_url = "http://localhost:8080"
+    let api_base_url = process.env.REACT_APP_API_BASE_URL
     event.preventDefault();
-    console.log(this.state)
     axios.post(`${api_base_url}/api/v1/requests/`, {
         email: this.state.email,
         username: this.state.username,
         gender: this.state.gender,
         age: parseInt(this.state.age),
-        applicationText: this.state.applicationText
+        info: {
+          applicationText: this.state.applicationText
+        }
     })
     .then(res => {
       if (res.status === 200) {
@@ -81,8 +103,13 @@ render() {
     }
     return (
         <>
-    <Container>
-    <h2 className="text-center">Whitelist Requst Form</h2>
+    <Container maxWidth="md">
+    <div>
+    <Jumbotron className="jumbotron">
+        <h1 className="display-4">Hey,</h1>
+        <p className="lead">Please kindly fill in the form for request to join our server. Our server admin will handle the applications within 24 hours. See you there! </p>
+      </Jumbotron>
+    </div>
     { messageBlock }
     <Form role="form" onSubmit={this.onSubmit}>
       <FormGroup>
@@ -103,19 +130,28 @@ render() {
       </FormGroup>
       <FormGroup>
         <Label >Age</Label>
-        <Input type="number" name="age" required placeholder="" value={this.state.age}  onChange={this.handleInputChange} />
+        <Input type="number" name="age" required value={this.state.age}  onChange={this.handleInputChange} />
       </FormGroup>
       <FormGroup>
         <Label>Application</Label>
-        <Input type="textarea" required name="applicationText" placeholder="tell us about your experience with minecraft and minecraft servers" value={this.state.applicationText}  onChange={this.handleInputChange}/>
+        <Input type="textarea"  rows='8' cols='60' required name="applicationText" placeholder="tell us about your experience with minecraft and minecraft servers" value={this.state.applicationText}  onChange={this.handleInputChange}/>
       </FormGroup>
       <FormGroup check>
         <Label check>
-          <Input type="checkbox" />{' '}
-          I've read the server rules and I agree to submit my application to join
+          <Input type="checkbox" required/>{' '}
+          I've read the <a href="#">server rules</a> and I agree to submit my application to join
         </Label>
       </FormGroup>
-      <Button color="primary"  type="submit"  size="lg">
+      <ReCaptcha
+            ref={(el) => {this.submitionCaptcha = el;}}
+            size="normal"
+            data-theme="dark"
+            render="explicit"
+            sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+            onloadCallback={this.onLoadRecaptcha}
+            verifyCallback={this.verifyCallback}
+        />
+      <Button color="primary" disabled={!this.state.recaptchaVerified} type="submit"  size="lg">
         Submit Application
       </Button>
     </Form>
