@@ -1,7 +1,7 @@
 import React from "react";
-import axios from "axios";
 import { ListGroup, ListGroupItem, Container, Button } from 'reactstrap';
 import moment from 'moment'
+import RequestsService from '../service/RequestsService'
 import './CheckStatus.css';
 
 class CheckStatus extends React.Component {
@@ -13,9 +13,8 @@ class CheckStatus extends React.Component {
     };
   }
   componentDidMount() {
-    let api_base_url = process.env.REACT_APP_API_BASE_URL
     const { match: { params } } = this.props;
-    axios.get(`${api_base_url}/api/v1/requests/${params.id}`)
+    RequestsService.getRequestByEncodedID(params.id)
     .then(res => {
         if(res.status === 200) {
             this.setState({

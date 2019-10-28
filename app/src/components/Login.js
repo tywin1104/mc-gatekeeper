@@ -4,21 +4,41 @@ import Button from '@material-ui/core/Button';
 import Typography from '@material-ui/core/Typography';
 import Container from '@material-ui/core/Container';
 import AuthService from '../service/AuthService';
+import { ReCaptcha } from 'react-recaptcha-google'
 
 class Login extends React.Component {
 
-    constructor(props){
-        super(props);
+    constructor(props, context){
+        super(props, context);
         this.state = {
             username: '',
             password: '',
         }
         this.login = this.login.bind(this);
+        this.onLoadRecaptcha = this.onLoadRecaptcha.bind(this);
+        this.verifyCallback = this.verifyCallback.bind(this);
     }
 
     componentDidMount() {
         localStorage.clear();
-    }
+        if (this.captchaDemo) {
+            console.log("started, just a second...")
+            this.captchaDemo.reset();
+            this.captchaDemo.execute();
+        }
+      }
+
+      onLoadRecaptcha() {
+          if (this.captchaDemo) {
+              this.captchaDemo.reset();
+              this.captchaDemo.execute();
+          }
+      }
+
+      verifyCallback(recaptchaToken) {
+        // console.log(recaptchaToken, "<= your recaptcha token")
+        this.login()
+      }
 
     login = (e) => {
         e.preventDefault();
@@ -52,14 +72,22 @@ class Login extends React.Component {
             <React.Fragment>
                 <Container maxWidth="sm">
                     <Typography variant="h4" style={styles.center}>Login</Typography>
-                    <form>
+                    <form onSubmit={this.login}>
                         <Typography variant="h4" style={styles.notification}>{this.state.message}</Typography>
-                        <TextField type="text" label="USERNAME" fullWidth margin="normal" name="username" value={this.state.username} onChange={this.onChange}/>
+                        <TextField type="text" label="USERNAME" fullWidth margin="normal" name="username" value={this.state.username} onChange={this.onChange} required/>
 
-                        <TextField type="password" label="PASSWORD" fullWidth margin="normal" name="password" value={this.state.password} onChange={this.onChange}/>
+                        <TextField type="password" label="PASSWORD" fullWidth margin="normal" name="password" value={this.state.password} onChange={this.onChange} required/>
 
-                        <Button variant="contained" color="secondary" onClick={this.login}>Login</Button>
+                        <Button variant="contained" color="secondary" type="submit">Login</Button>
                     </form>
+                    <ReCaptcha
+                        ref={(el) => {this.captchaDemo = el;}}
+                        size="invisible"
+                        render="explicit"
+                        sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+                        onloadCallback={this.onLoadRecaptcha}
+                        verifyCallback={this.verifyCallback}
+                    />
                 </Container>
             </React.Fragment>
         )

@@ -1,5 +1,4 @@
 import React from "react";
-import axios from "axios";
 import MaterialTable from "material-table";
 import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
@@ -9,17 +8,13 @@ import DraftsIcon from '@material-ui/icons/Drafts';
 import WcIcon from '@material-ui/icons/Wc';
 import FaceIcon from '@material-ui/icons/Face';
 import moment from 'moment'
+import RequestsService from '../../service/RequestsService';
 
 class Table extends React.Component {
   onApprove = (event, request) => {
-    let api_base_url = process.env.REACT_APP_API_BASE_URL
     let requestID = request._id
     event.preventDefault();
-    axios.patch(`${api_base_url}/api/v1/internal/requests/${requestID}`, {
-        status: "Approved",
-        processedTimestamp: new Date().toISOString(),
-        admin: 'admin'
-    }, this.props.config)
+    RequestsService.approveRequestAdmin(requestID, this.props.config)
     .then(res => {
       if (res.status === 200) {
           window.location.reload();
@@ -30,14 +25,9 @@ class Table extends React.Component {
   }
 
   onDeny = (event, request) => {
-    let api_base_url = process.env.REACT_APP_API_BASE_URL
     let requestID = request._id
     event.preventDefault();
-    axios.patch(`${api_base_url}/api/v1/internal/requests/${requestID}`, {
-        status: "Denied",
-        processedTimestamp: new Date().toISOString(),
-        admin: 'admin'
-    }, this.props.config)
+    RequestsService.denyRequestAdmin(requestID, this.props.config)
     .then(res => {
       if (res.status === 200) {
         window.location.reload();

@@ -1,9 +1,9 @@
 import React from "react";
 import { Button, Form, FormGroup, Label, Input, UncontrolledAlert, Jumbotron} from 'reactstrap';
-import axios from "axios";
 import './Application.css';
 import Container from '@material-ui/core/Container';
 import { ReCaptcha } from 'react-recaptcha-google'
+import RequestsService from '../service/RequestsService'
 
 class Application extends React.Component {
   constructor(props, context) {
@@ -38,16 +38,15 @@ class Application extends React.Component {
   }
 
   onSubmit = (event) => {
-    let api_base_url = process.env.REACT_APP_API_BASE_URL
     event.preventDefault();
-    axios.post(`${api_base_url}/api/v1/requests/`, {
-        email: this.state.email,
-        username: this.state.username,
-        gender: this.state.gender,
-        age: parseInt(this.state.age),
-        info: {
-          applicationText: this.state.applicationText
-        }
+    RequestsService.createRequest({
+      email: this.state.email,
+      username: this.state.username,
+      gender: this.state.gender,
+      age: parseInt(this.state.age),
+      info: {
+        applicationText: this.state.applicationText
+      }
     })
     .then(res => {
       if (res.status === 200) {

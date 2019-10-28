@@ -19,7 +19,7 @@ import { mainListItems } from './listItems';
 import Chart from './Chart';
 import Stats from './Stats';
 import Table from './Table';
-import axios from "axios";
+import RequestsService from '../../service/RequestsService';
 
 
 
@@ -103,7 +103,6 @@ const useStyles = theme => ({
   },
 })
 
-
 class Dashboard extends React.Component {
   constructor(props) {
     super(props)
@@ -115,7 +114,6 @@ class Dashboard extends React.Component {
   }
 
   componentDidMount() {
-    let api_base_url = process.env.REACT_APP_API_BASE_URL
     // Check localstorage for token, if null or invalid, redirects to login page
     let token = JSON.parse(localStorage.getItem("token"));
     if(token == null) {
@@ -123,13 +121,15 @@ class Dashboard extends React.Component {
       return
     }
 
+    // such request will go through the auth middleware to check the validity of token implicitly
+    // So if status code returned is 401 we could redirect user to login
     let config = {
       headers: {
         Authorization: `Bearer ${token.value}`,
       }
     }
     this.setState({auth_header: config})
-    axios.get(`${api_base_url}/api/v1/internal/requests`, config)
+    RequestsService.getAllRequests(config)
     .then(res => {
       if (res.status === 200) {
           this.setState({
@@ -137,16 +137,13 @@ class Dashboard extends React.Component {
           })
       }})
     .catch(error => {
-        if (error.response) {
+      if (error.response) {
           if(error.response.status === 401) {
-              this.props.history.push('/login')
-              return
-          }else {
-              alert("Internal server error. Please try again")
-              this.props.history.push('/login')
-              return
+              alert("Log in is required")
           }
       }
+      this.props.history.push('/login')
+      return
     });
 
   }

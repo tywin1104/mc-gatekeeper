@@ -16,7 +16,6 @@ class AuthService {
         return JSON.parse(localStorage.getItem("token"));
     }
 
-
     // logOut() {
     //     localStorage.removeItem("userInfo");
     //     return axios.post(USER_API_BASE_URL + 'logout', {}, this.getAuthHeader());
