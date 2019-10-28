@@ -25,6 +25,9 @@ export default function Chart(props) {
     let date = daysAgo[i]
     if (Object.prototype.hasOwnProperty.call(groupedResults, date)) {
       data.push(createData(date, groupedResults[date].length))
+    }else {
+      // If no new requests for today, set graph line height to zero
+      data.push(createData(date, 0))
     }
   }
 

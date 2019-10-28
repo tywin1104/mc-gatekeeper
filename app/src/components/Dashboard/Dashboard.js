@@ -109,13 +109,27 @@ class Dashboard extends React.Component {
     super(props)
     this.state = {
       open: true,
-      requests: []
+      requests: [],
+      auth_header : {}
     };
   }
 
   componentDidMount() {
     let api_base_url = process.env.REACT_APP_API_BASE_URL
-    axios.get(`${api_base_url}/api/v1/internal/requests`)
+    // Check localstorage for token, if null or invalid, redirects to login page
+    let token = JSON.parse(localStorage.getItem("token"));
+    if(token == null) {
+      this.props.history.push('/login')
+      return
+    }
+
+    let config = {
+      headers: {
+        Authorization: `Bearer ${token.value}`,
+      }
+    }
+    this.setState({auth_header: config})
+    axios.get(`${api_base_url}/api/v1/internal/requests`, config)
     .then(res => {
       if (res.status === 200) {
           this.setState({
@@ -123,7 +137,16 @@ class Dashboard extends React.Component {
           })
       }})
     .catch(error => {
-        console.log(error)
+        if (error.response) {
+          if(error.response.status === 401) {
+              this.props.history.push('/login')
+              return
+          }else {
+              alert("Internal server error. Please try again")
+              this.props.history.push('/login')
+              return
+          }
+      }
     });
 
   }
@@ -203,7 +226,7 @@ class Dashboard extends React.Component {
             {/* Whitelist request table-view */}
             <Grid item xs={12}>
               <Paper className={classes.paper}>
-                <Table requests={this.state.requests}/>
+                <Table requests={this.state.requests} config={this.state.auth_header}/>
               </Paper>
             </Grid>
           </Grid>

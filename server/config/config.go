@@ -21,6 +21,7 @@ type Config struct {
 	PassPhrase      string   `yaml:"passphrase"`
 	WorkerLogFile   string   `yaml:"workerLogFile"`
 	ServerLogFile   string   `yaml:"serverLogFile"`
+	JWTTokenSecret  string   `yaml:"jwtTokenSecret"`
 }
 
 // LoadConfig loads config file

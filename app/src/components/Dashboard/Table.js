@@ -5,7 +5,6 @@ import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
 import ListItemIcon from '@material-ui/core/ListItemIcon';
 import ListItemText from '@material-ui/core/ListItemText';
-import InboxIcon from '@material-ui/icons/Inbox';
 import DraftsIcon from '@material-ui/icons/Drafts';
 import WcIcon from '@material-ui/icons/Wc';
 import FaceIcon from '@material-ui/icons/Face';
@@ -20,7 +19,7 @@ class Table extends React.Component {
         status: "Approved",
         processedTimestamp: new Date().toISOString(),
         admin: 'admin'
-    })
+    }, this.props.config)
     .then(res => {
       if (res.status === 200) {
           window.location.reload();
@@ -38,7 +37,7 @@ class Table extends React.Component {
         status: "Denied",
         processedTimestamp: new Date().toISOString(),
         admin: 'admin'
-    })
+    }, this.props.config)
     .then(res => {
       if (res.status === 200) {
         window.location.reload();
@@ -50,7 +49,7 @@ class Table extends React.Component {
 
 
   render() {
-    if(!this.props || this.props.requests.length === 0) {
+    if(!this.props || this.props.requests.length === 0 || this.props.config == null) {
       return <div>Loading...</div>
     }
     // Create a clone of props so that modifications here will not bubbled up
@@ -58,7 +57,6 @@ class Table extends React.Component {
     // Transform timestamp and null value to be human-readable
     requests = requests.map(function(item){
       item.timestamp =  moment.parseZone(item.timestamp).local().format("MM/DD/YYYY HH:mm")
-      console.log(item.processedTimestamp)
       // In Golang, time.Time zero value corresponds to a certain timestamp in mongodb
       if(item.processedTimestamp === "0001-01-01T00:00:00Z") {
         item.processedTimestamp = "N/A"
@@ -70,7 +68,7 @@ class Table extends React.Component {
     });
     return (
       <MaterialTable
-        title="View all requests"
+        title="All Requests"
         columns={[
           { title: 'Username', field: 'username' },
           { title: 'Email', field: 'email' },

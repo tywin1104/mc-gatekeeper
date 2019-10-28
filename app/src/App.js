@@ -9,6 +9,7 @@ import Application from './components/Application'
 import CheckStatus from './components/CheckStatus'
 import AdminAction from './components/AdminAction'
 import Dashboard from './components/Dashboard/Dashboard'
+import Login from './components/Login'
 import { loadReCaptcha } from 'react-recaptcha-google'
 
 class App extends React.Component  {
@@ -25,6 +26,8 @@ class App extends React.Component  {
             <Route path="/action/:id" exact component={AdminAction}>
             </Route>
             <Route path="/dashboard" exact component={Dashboard}>
+            </Route>
+            <Route path="/login" exact component={Login}>
             </Route>
             <Route path="/">
               <Application></Application>

@@ -5,6 +5,8 @@ go 1.12
 require (
 	cloud.google.com/go v0.37.4
 	github.com/BurntSushi/toml v0.3.1
+	github.com/auth0/go-jwt-middleware v0.0.0-20190805220309-36081240882b
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/felixge/httpsnoop v1.0.1
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/gorilla/mux v1.6.2
@@ -13,7 +15,9 @@ require (
 	github.com/prometheus/common v0.2.0
 	github.com/rs/cors v1.7.0
 	github.com/sirupsen/logrus v1.2.0
+	github.com/smartystreets/goconvey v0.0.0-20190731233626-505e41936337 // indirect
 	github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271
+	github.com/urfave/negroni v1.0.0
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c // indirect
 	github.com/xdg/stringprep v1.0.0 // indirect
 	go.mongodb.org/mongo-driver v1.1.2
