@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"os"
 
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -33,12 +32,12 @@ func main() {
 	// Setup logger
 	log.SetFormatter(&logrus.JSONFormatter{})
 	log.SetLevel(logrus.InfoLevel)
-	file, err := os.OpenFile(config.WorkerLogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err == nil {
-		log.Out = file
-	} else {
-		log.Info("Failed to log to file, using default stderr")
-	}
+	// file, err := os.OpenFile(config.WorkerLogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	// if err == nil {
+	// 	log.Out = file
+	// } else {
+	// 	log.Info("Failed to log to file, using default stderr")
+	// }
 
 	ops := config.Ops
 	conn, err := amqp.Dial(config.RabbitmqConnStr)

@@ -13,7 +13,6 @@ import (
 	"github.com/tywin1104/mc-whitelist/broker"
 	"github.com/tywin1104/mc-whitelist/config"
 	"github.com/tywin1104/mc-whitelist/db"
-	admin_auth "github.com/tywin1104/mc-whitelist/server/auth"
 )
 
 // Service represents struct that deals with database level operations
@@ -80,20 +79,20 @@ func (svc *Service) routes() {
 
 	// Endpoint to authenticate admin user
 	auth := svc.router.PathPrefix("/api/v1/auth").Subrouter()
-	auth.HandleFunc("/", admin_auth.AdminSigninHandler(svc.c)).Methods("POST")
+	auth.HandleFunc("/", svc.handleAdminSignin()).Methods("POST")
 
-	// Endpoints for internal(admin) consumptiono only
+	// Endpoints for internal(admin) consumptiono only that are wrapped by auth middleware
 	internal := svc.router.PathPrefix("/api/v1/internal/requests").Subrouter()
 	internal.Handle("/", negroni.New(
-		negroni.HandlerFunc(admin_auth.AuthMiddleware.HandlerWithNext),
+		negroni.HandlerFunc(svc.getAuthMiddleware().HandlerWithNext),
 		negroni.Wrap(svc.handleGetRequests()),
 	)).Methods("GET")
 	internal.Handle("/{requestId}", negroni.New(
-		negroni.HandlerFunc(admin_auth.AuthMiddleware.HandlerWithNext),
+		negroni.HandlerFunc(svc.getAuthMiddleware().HandlerWithNext),
 		negroni.Wrap(svc.handleInternalPatchRequestByID()),
 	)).Methods("PATCH")
 	internal.Handle("/{requestId}", negroni.New(
-		negroni.HandlerFunc(admin_auth.AuthMiddleware.HandlerWithNext),
+		negroni.HandlerFunc(svc.getAuthMiddleware().HandlerWithNext),
 		negroni.Wrap(svc.handleDeleteRequestByID()),
 	)).Methods("DELETE")
 }

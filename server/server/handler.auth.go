@@ -1,4 +1,4 @@
-package auth
+package server
 
 import (
 	"encoding/json"
@@ -6,15 +6,9 @@ import (
 	"time"
 
 	jwtmiddleware "github.com/auth0/go-jwt-middleware"
-	"github.com/tywin1104/mc-whitelist/config"
 
 	"github.com/dgrijalva/jwt-go"
 )
-
-var users = map[string]string{
-	"user1": "password1",
-	"user2": "password2",
-}
 
 type credentials struct {
 	Username string `json:"username"`
@@ -26,8 +20,9 @@ type claims struct {
 	jwt.StandardClaims
 }
 
-// AdminSigninHandler handles admin login request and generate jwt token if credentials are valid
-func AdminSigninHandler(c *config.Config) http.HandlerFunc {
+var authMiddleware *jwtmiddleware.JWTMiddleware
+
+func (svc *Service) handleAdminSignin() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var creds credentials
 		err := json.NewDecoder(r.Body).Decode(&creds)
@@ -36,9 +31,8 @@ func AdminSigninHandler(c *config.Config) http.HandlerFunc {
 			return
 		}
 
-		expectedPassword, ok := users[creds.Username]
-
-		if !ok || expectedPassword != creds.Password {
+		// check for valid admin login credentials
+		if !(creds.Username == svc.c.AdminUsername && creds.Password == svc.c.AdminPassword) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -57,7 +51,7 @@ func AdminSigninHandler(c *config.Config) http.HandlerFunc {
 		// Declare the token with the algorithm used for signing, and the claims
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 		// Create the JWT string
-		tokenString, err := token.SignedString(c.JWTTokenSecret)
+		tokenString, err := token.SignedString([]byte(svc.c.JWTTokenSecret))
 		if err != nil {
 			// If there is an error in creating the JWT return an internal server error
 			w.WriteHeader(http.StatusInternalServerError)
@@ -73,21 +67,14 @@ func AdminSigninHandler(c *config.Config) http.HandlerFunc {
 	}
 }
 
-// AuthMiddleware checks for valid attached to API routes that are not publicly accessible
-var AuthMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
-	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
-		return []byte("my_secret_key"), nil
-	},
-	SigningMethod: jwt.SigningMethodHS256,
-})
-
-// func fromCookie(accessTokenName string) jwtmiddleware.TokenExtractor {
-// 	return func(r *http.Request) (string, error) {
-// 		cookie, _ := r.Cookie(accessTokenName)
-// 		fmt.Println(cookie)
-// 		if cookie != nil {
-// 			return cookie.Value, nil
-// 		}
-// 		return "", nil
-// 	}
-// }
+func (svc *Service) getAuthMiddleware() *jwtmiddleware.JWTMiddleware {
+	if authMiddleware == nil {
+		authMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
+			ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
+				return []byte(svc.c.JWTTokenSecret), nil
+			},
+			SigningMethod: jwt.SigningMethodHS256,
+		})
+	}
+	return authMiddleware
+}
