@@ -6,6 +6,7 @@ import (
 	"time"
 
 	jwtmiddleware "github.com/auth0/go-jwt-middleware"
+	"github.com/sirupsen/logrus"
 
 	"github.com/dgrijalva/jwt-go"
 )
@@ -54,6 +55,9 @@ func (svc *Service) handleAdminSignin() http.HandlerFunc {
 		tokenString, err := token.SignedString([]byte(svc.c.JWTTokenSecret))
 		if err != nil {
 			// If there is an error in creating the JWT return an internal server error
+			svc.logger.WithFields(logrus.Fields{
+				"err": err.Error(),
+			}).Error("Unable to sign the JWT token")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

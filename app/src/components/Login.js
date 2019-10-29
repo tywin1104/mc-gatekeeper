@@ -45,7 +45,6 @@ class Login extends React.Component {
         const credentials = {username: this.state.username, password: this.state.password};
         AuthService.login(credentials).then(res => {
             if(res.status === 200){
-                console.log(res.data)
                 localStorage.setItem("token", JSON.stringify(res.data.token));
                 this.props.history.push('/dashboard');
             }

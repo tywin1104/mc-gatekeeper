@@ -11,6 +11,7 @@ import (
 	"github.com/tywin1104/mc-whitelist/config"
 	"github.com/tywin1104/mc-whitelist/db"
 	"github.com/tywin1104/mc-whitelist/server"
+	"github.com/tywin1104/mc-whitelist/worker"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -28,12 +29,12 @@ func main() {
 	log.SetFormatter(&logrus.JSONFormatter{})
 	log.SetOutput(os.Stdout)
 	log.SetLevel(logrus.InfoLevel)
-	// file, err := os.OpenFile(config.ServerLogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	// if err == nil {
-	// 	log.Out = file
-	// } else {
-	// 	log.Info("Failed to log to file, using default stderr")
-	// }
+	file, err := os.OpenFile(config.ServerLogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err == nil {
+		log.Out = file
+	} else {
+		log.Info("Failed to log to file, using default stderr")
+	}
 
 	log.Info("Server is being started.......")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -58,7 +59,9 @@ func main() {
 	}
 	defer broker.Channel.Close()
 
-	// Set up http REST API server
+	// Start the worker
+	go worker.Start()
+	// Setup and start the http REST API server
 	dbSvc := db.NewService(client)
 	httpServer := server.NewService(dbSvc, broker, config, log)
 	httpServer.Listen(config.APIPort)

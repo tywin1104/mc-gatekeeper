@@ -1,9 +1,10 @@
-package main
+package worker
 
 import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"os"
 
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -23,7 +24,8 @@ func failOnError(err error, msg string) {
 	}
 }
 
-func main() {
+// Start the worker to process the messages pushed into the queue
+func Start() {
 	config, err := config.LoadConfig()
 	if err != nil {
 		log.Fatal("Unable to load config: " + err.Error())
@@ -32,12 +34,12 @@ func main() {
 	// Setup logger
 	log.SetFormatter(&logrus.JSONFormatter{})
 	log.SetLevel(logrus.InfoLevel)
-	// file, err := os.OpenFile(config.WorkerLogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	// if err == nil {
-	// 	log.Out = file
-	// } else {
-	// 	log.Info("Failed to log to file, using default stderr")
-	// }
+	file, err := os.OpenFile(config.WorkerLogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err == nil {
+		log.Out = file
+	} else {
+		log.Info("Failed to log to file, using default stderr")
+	}
 
 	ops := config.Ops
 	conn, err := amqp.Dial(config.RabbitmqConnStr)
