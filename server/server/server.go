@@ -1,7 +1,9 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/tywin1104/mc-whitelist/utils"
 	"github.com/urfave/negroni"
@@ -36,7 +38,7 @@ func NewService(db *db.Service, broker *broker.Service, c *config.Config, logger
 }
 
 // Listen opens up the http port for REST API and register all routes
-func (svc *Service) Listen(port string) {
+func (svc *Service) Listen(port string, wg *sync.WaitGroup) {
 	log := svc.logger
 	svc.routes()
 	log.WithFields(logrus.Fields{
@@ -63,7 +65,25 @@ func (svc *Service) Listen(port string) {
 			m.Duration,
 		)
 	})
-	log.Fatal(http.ListenAndServe(port, wrappedH))
+	endpoint := "/health"
+	go waitForHTTPServer(wg, port[1:], endpoint)
+	go func() {
+		if err := http.ListenAndServe(port, wrappedH); err != nil {
+			log.Fatal(err)
+		}
+	}()
+}
+
+func waitForHTTPServer(wg *sync.WaitGroup, port, endpoint string) {
+	var client http.Client
+	for {
+		resp, err := client.Get(fmt.Sprintf("http://localhost:%s/%s", port, endpoint))
+		if err == nil && resp != nil && resp.StatusCode == 200 {
+			wg.Done()
+			logrus.WithField("port", port).Infof("Http server is up")
+			break
+		}
+	}
 }
 
 func (svc *Service) routes() {
@@ -95,6 +115,9 @@ func (svc *Service) routes() {
 		negroni.HandlerFunc(svc.getAuthMiddleware().HandlerWithNext),
 		negroni.Wrap(svc.handleDeleteRequestByID()),
 	)).Methods("DELETE")
+
+	// Server health endpoint
+	svc.router.HandleFunc("/health", svc.handleHealthCheck()).Methods("GET")
 }
 
 func (svc *Service) handleVerifyAdminToken() http.HandlerFunc {
@@ -122,6 +145,12 @@ func (svc *Service) handleVerifyAdminToken() http.HandlerFunc {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (svc *Service) handleHealthCheck() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}
 }

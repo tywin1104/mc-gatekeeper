@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -59,10 +60,15 @@ func main() {
 	}
 	defer broker.Channel.Close()
 
+	wg := sync.WaitGroup{}
+	wg.Add(2)
 	// Start the worker
-	go worker.Start()
+	go worker.Start(&wg)
 	// Setup and start the http REST API server
 	dbSvc := db.NewService(client)
 	httpServer := server.NewService(dbSvc, broker, config, log)
-	httpServer.Listen(config.APIPort)
+	go httpServer.Listen(config.APIPort, &wg)
+	wg.Wait()
+	logrus.Info("Everything is up. Check for detailed log for worker/server.")
+	<-make(chan int)
 }

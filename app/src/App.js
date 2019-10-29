@@ -11,7 +11,6 @@ import AdminAction from './components/AdminAction'
 import Dashboard from './components/Dashboard/Dashboard'
 import Login from './components/Login'
 import { loadReCaptcha } from 'react-recaptcha-google'
-require('dotenv').config()
 
 class App extends React.Component  {
   componentDidMount() {

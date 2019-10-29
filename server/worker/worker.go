@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"sync"
 
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -20,12 +21,12 @@ func failOnError(err error, msg string) {
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"err": err,
-		}).Error(msg)
+		}).Fatal(msg)
 	}
 }
 
 // Start the worker to process the messages pushed into the queue
-func Start() {
+func Start(wg *sync.WaitGroup) {
 	config, err := config.LoadConfig()
 	if err != nil {
 		log.Fatal("Unable to load config: " + err.Error())
@@ -135,7 +136,8 @@ func Start() {
 			}
 		}
 	}()
-
+	wg.Done()
+	logrus.Info("Worker started to listensing for messages")
 	log.Printf(" [*] Worker start. Listening for messages..")
 	<-forever
 }
@@ -180,7 +182,8 @@ func emailConfirmation(whitelistRequest types.WhitelistRequest, c *config.Config
 		}).Error("Failed to encode requestID Token")
 		return err
 	}
-	err = mailer.Send("./mailer/templates/confirmation.html", map[string]string{"link": requestIDToken}, subject, whitelistRequest.Email, c)
+	confirmationLink := os.Getenv("FRONTEND_DEPLOYED_URL") + "status/" + requestIDToken
+	err = mailer.Send("./mailer/templates/confirmation.html", map[string]string{"link": confirmationLink}, subject, whitelistRequest.Email, c)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"recipent": whitelistRequest.Email,
@@ -212,7 +215,8 @@ func emailToOps(whitelistRequest types.WhitelistRequest, quoram int, ops []strin
 			}).Error("Failed to encode opEmail Token")
 			return err
 		}
-		err = mailer.Send("./mailer/templates/ops.html", map[string]string{"link": requestIDToken + "?adm=" + opEmailToken}, subject, op, c)
+		opLink := os.Getenv("FRONTEND_DEPLOYED_URL") + "action/" + requestIDToken + "?adm=" + opEmailToken
+		err = mailer.Send("./mailer/templates/ops.html", map[string]string{"link": opLink}, subject, op, c)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				"recipent": op,
