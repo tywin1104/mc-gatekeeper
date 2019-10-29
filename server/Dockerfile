@@ -10,7 +10,6 @@ FROM alpine:latest AS production
 RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
 RUN apk add --no-cache bash
 COPY --from=builder /server/cmd/mc-whitelist-server /server/mc-whitelist-server
-COPY --from=builder /server/config.yaml /server/config.yaml
 COPY --from=builder /server/mailer/templates /server/mailer/templates/
 WORKDIR /server
 CMD ["./mc-whitelist-server"]
