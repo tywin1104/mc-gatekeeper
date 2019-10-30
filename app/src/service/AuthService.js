@@ -1,11 +1,12 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+const API_HOST = window.REACT_APP_API_HOST ? window.REACT_APP_API_HOST : "";
+console.log(API_HOST)
 
 class AuthService {
 
     login(credentials){
-        return axios.post(`${API_BASE_URL}/api/v1/auth/`, credentials);
+        return axios.post(`${API_HOST}/api/v1/auth/`, credentials);
     }
 
     getAuthHeader() {
