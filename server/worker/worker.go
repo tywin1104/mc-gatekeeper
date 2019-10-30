@@ -35,12 +35,6 @@ func Start(wg *sync.WaitGroup) {
 	// Setup logger
 	log.SetFormatter(&logrus.JSONFormatter{})
 	log.SetLevel(logrus.InfoLevel)
-	file, err := os.OpenFile(config.WorkerLogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err == nil {
-		log.Out = file
-	} else {
-		log.Info("Failed to log to file, using default stderr")
-	}
 
 	ops := config.Ops
 	conn, err := amqp.Dial(config.RabbitmqConnStr)
@@ -136,9 +130,9 @@ func Start(wg *sync.WaitGroup) {
 			}
 		}
 	}()
+	log.Info("Worker started. Listening for messages..")
 	wg.Done()
-	logrus.Info("Worker started to listensing for messages")
-	log.Printf(" [*] Worker start. Listening for messages..")
+
 	<-forever
 }
 

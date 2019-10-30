@@ -30,14 +30,7 @@ func main() {
 	log.SetFormatter(&logrus.JSONFormatter{})
 	log.SetOutput(os.Stdout)
 	log.SetLevel(logrus.InfoLevel)
-	file, err := os.OpenFile(config.ServerLogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err == nil {
-		log.Out = file
-	} else {
-		log.Info("Failed to log to file, using default stderr")
-	}
 
-	log.Info("Server is being started.......")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(config.MongodbConnStr))
@@ -69,6 +62,6 @@ func main() {
 	httpServer := server.NewService(dbSvc, broker, config, log)
 	go httpServer.Listen(config.APIPort, &wg)
 	wg.Wait()
-	logrus.Info("Everything is up. Check for detailed log for worker/server.")
+	log.Info("Everything is up.")
 	<-make(chan int)
 }

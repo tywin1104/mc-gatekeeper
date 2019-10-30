@@ -39,11 +39,7 @@ func NewService(db *db.Service, broker *broker.Service, c *config.Config, logger
 
 // Listen opens up the http port for REST API and register all routes
 func (svc *Service) Listen(port string, wg *sync.WaitGroup) {
-	log := svc.logger
 	svc.routes()
-	log.WithFields(logrus.Fields{
-		"port": port,
-	}).Info("The API http server starts listening")
 
 	// Configure CORS
 	c := cors.New(cors.Options{
@@ -58,29 +54,33 @@ func (svc *Service) Listen(port string, wg *sync.WaitGroup) {
 	// capture http related metrics
 	wrappedH := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		m := httpsnoop.CaptureMetrics(handler, w, r)
-		svc.logger.Infof("%s %s (code=%d dt=%s)",
-			r.Method,
-			r.URL,
-			m.Code,
-			m.Duration,
-		)
+		// Skip logging health checks as they are constantly called by kubernetes probes
+		if r.URL.String() != "/health" {
+			svc.logger.Infof("%s %s (code=%d dt=%s)",
+				r.Method,
+				r.URL,
+				m.Code,
+				m.Duration,
+			)
+		}
+
 	})
-	endpoint := "/health"
-	go waitForHTTPServer(wg, port[1:], endpoint)
+	endpoint := "health"
+	go waitForHTTPServer(wg, port[1:], endpoint, svc.logger)
 	go func() {
 		if err := http.ListenAndServe(port, wrappedH); err != nil {
-			log.Fatal(err)
+			svc.logger.Fatal(err)
 		}
 	}()
 }
 
-func waitForHTTPServer(wg *sync.WaitGroup, port, endpoint string) {
+func waitForHTTPServer(wg *sync.WaitGroup, port, endpoint string, log *logrus.Logger) {
 	var client http.Client
 	for {
 		resp, err := client.Get(fmt.Sprintf("http://localhost:%s/%s", port, endpoint))
 		if err == nil && resp != nil && resp.StatusCode == 200 {
 			wg.Done()
-			logrus.WithField("port", port).Infof("Http server is up")
+			log.WithField("port", port).Infof("Http server is up and healthy")
 			break
 		}
 	}
