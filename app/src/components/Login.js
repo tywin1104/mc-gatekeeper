@@ -83,7 +83,7 @@ class Login extends React.Component {
                         ref={(el) => {this.captchaDemo = el;}}
                         size="invisible"
                         render="explicit"
-                        sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+                        sitekey="6Lc_vL8UAAAAAMNIAhLWtEDyoQDtjzwygxP1knim"
                         onloadCallback={this.onLoadRecaptcha}
                         verifyCallback={this.verifyCallback}
                     />

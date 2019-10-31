@@ -7,6 +7,7 @@ spec:
   selector:
     app: mc-whitelist
     tier: {{ .Chart.Name }}
+  type: NodePort
   ports:
   - protocol: TCP
     port: 80

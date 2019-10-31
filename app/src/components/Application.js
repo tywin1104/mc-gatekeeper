@@ -104,7 +104,7 @@ render() {
         <>
     <Container maxWidth="md">
     <div>
-    <Jumbotron className="jumbotron">
+    <Jumbotron className="application-jumbotron">
         <h1 className="display-4">Hey,</h1>
         <p className="lead">Please kindly fill in the form for request to join our server. Our server admin will handle the applications within 24 hours. See you there! </p>
       </Jumbotron>
@@ -146,7 +146,7 @@ render() {
             size="normal"
             data-theme="dark"
             render="explicit"
-            sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+            sitekey="6Lc_vL8UAAAAAMNIAhLWtEDyoQDtjzwygxP1knim"
             onloadCallback={this.onLoadRecaptcha}
             verifyCallback={this.verifyCallback}
         />
