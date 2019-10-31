@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+namespace: {{ .Values.global.namespace }}
+metadata:
+  name: service-mc-whitelist-{{ .Chart.Name }}
+spec:
+  selector:
+    app: mc-whitelist
+    tier: {{ .Chart.Name }}
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+---

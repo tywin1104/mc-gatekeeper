@@ -1,0 +1,4 @@
+apiVersion: v1
+description: A Helm chart for deploying mc-whitelist frontend and backend components
+name: mc-whitelist
+version: 0.1.0

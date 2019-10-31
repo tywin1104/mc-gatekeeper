@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+namespace: {{ .Values.global.namespace }}
+metadata:
+  name: mc-whitelist-{{ .Chart.Name }}
+spec:
+  selector:
+    matchLabels:
+      app: mc-whitelist
+      tier: {{ .Chart.Name }}
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      labels:
+        app: mc-whitelist
+        tier: {{ .Chart.Name }}
+    spec:
+      containers:
+        - name: mc-whitelist-server
+          image: {{ .Values.image.registry }}:{{ .Values.image.tag }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+          - name: FRONTEND_DEPLOYED_URL
+            value: "http://service-mc-whitelist-{{ .Chart.Name }}/"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: "config"
+              mountPath: "/server/config.yaml"
+              subPath: "config.yaml"
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 10
+      volumes:
+        - name: "config"
+          secret:
+            secretName: {{ .Chart.Name }}
+
+---

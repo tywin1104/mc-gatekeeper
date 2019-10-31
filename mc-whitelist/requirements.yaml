@@ -1,0 +1,7 @@
+dependencies:
+- name: frontend
+  version: 0.1.0
+  repository: file://helm-charts/frontend
+- name: backend
+  version: 0.1.0
+  repository: file://helm-charts/backend

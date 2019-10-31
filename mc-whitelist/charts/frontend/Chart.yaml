@@ -1,0 +1,4 @@
+apiVersion: v1
+description: A Helm chart for the frontend component
+name: frontend
+version: 1.0.0

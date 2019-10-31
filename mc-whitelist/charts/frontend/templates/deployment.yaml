@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+namespace: {{ .Values.global.namespace }}
+metadata:
+  name: mc-whitelist-{{ .Chart.Name }}
+spec:
+  selector:
+    matchLabels:
+      app: mc-whitelist
+      tier: {{ .Chart.Name }}
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      labels:
+        app: mc-whitelist
+        tier: {{ .Chart.Name }}
+    spec:
+      containers:
+        - name: mc-whitelist-app
+          image: {{ .Values.image.registry }}:{{ .Values.image.tag }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+---
