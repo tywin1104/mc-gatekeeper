@@ -15,34 +15,40 @@ import (
 	"github.com/tywin1104/mc-whitelist/utils"
 )
 
-var log = logrus.New()
+// Worker defines message queue worker
+type Worker struct {
+	c      *config.Config
+	logger *logrus.Entry
+}
 
-func failOnError(err error, msg string) {
+// NewWorker creates a worker to constantly listen and handle messages in the queue
+func NewWorker(c *config.Config, logger *logrus.Entry) *Worker {
+	return &Worker{
+		c:      c,
+		logger: logger,
+	}
+}
+
+func (worker *Worker) failOnError(err error, msg string) {
 	if err != nil {
-		log.WithFields(logrus.Fields{
+		worker.logger.WithFields(logrus.Fields{
 			"err": err,
 		}).Fatal(msg)
 	}
 }
 
 // Start the worker to process the messages pushed into the queue
-func Start(wg *sync.WaitGroup) {
+func (worker *Worker) Start(wg *sync.WaitGroup) {
+	log := worker.logger
 	config, err := config.LoadConfig()
-	if err != nil {
-		log.Fatal("Unable to load config: " + err.Error())
-	}
+	worker.failOnError(err, "Failed to load config")
 
-	// Setup logger
-	log.SetFormatter(&logrus.JSONFormatter{})
-	log.SetLevel(logrus.InfoLevel)
-
-	ops := config.Ops
 	conn, err := amqp.Dial(config.RabbitmqConnStr)
-	failOnError(err, "Failed to connect to RabbitMQ")
+	worker.failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
 
 	ch, err := conn.Channel()
-	failOnError(err, "Failed to open a channel")
+	worker.failOnError(err, "Failed to open a channel")
 	defer ch.Close()
 
 	args := make(amqp.Table)
@@ -59,14 +65,14 @@ func Start(wg *sync.WaitGroup) {
 		false,                // no-wait
 		args,                 // arguments
 	)
-	failOnError(err, "Failed to declare a queue")
+	worker.failOnError(err, "Failed to declare a queue")
 
 	err = ch.Qos(
 		1,     // prefetch count
 		0,     // prefetch size
 		false, // global
 	)
-	failOnError(err, "Failed to set QoS")
+	worker.failOnError(err, "Failed to set QoS")
 
 	msgs, err := ch.Consume(
 		q.Name, // queue
@@ -77,67 +83,69 @@ func Start(wg *sync.WaitGroup) {
 		false,  // no-wait
 		nil,    // args
 	)
-	failOnError(err, "Failed to register a consumer")
+	worker.failOnError(err, "Failed to register a consumer")
 
 	forever := make(chan bool)
-
-	go func() {
-		for d := range msgs {
-			whitelistRequest, err := deserialize(d.Body)
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					"messageBody": d.Body,
-					"err":         err,
-				}).Error("Unable to decode message into whitelistRequest")
-				// Unable to process this message, put to the dead-letter queue
-				d.Nack(false, false)
-			} else {
-				log.WithFields(logrus.Fields{
-					"username": whitelistRequest.Username,
-					"status":   whitelistRequest.Status,
-					"ID":       whitelistRequest.ID,
-				}).Info("Received new task")
-				// Concrete actions to do when receiving task from message queue
-				// From the message body to determine which type of work to do
-				if whitelistRequest.Status == "Approved" || whitelistRequest.Status == "Denied" {
-					// Need to send update status back to the user
-					// Put message to dead letter queue for later investigation if unable to send decision email
-					err := emailDecision(whitelistRequest, config)
-					if err != nil {
-						log.WithFields(logrus.Fields{
-							"err":     err.Error(),
-							"message": whitelistRequest,
-						}).Error("Failed to send decision email")
-						d.Nack(false, false)
-					}
-					d.Ack(false)
-				} else if whitelistRequest.Status == "Pending" {
-					// Need to handle new request
-					// Send application confirmation email to user
-					emailConfirmation(whitelistRequest, config)
-					// Send approval request emails to op(s)
-					err := emailToOps(whitelistRequest, 1, ops, config)
-					if err != nil {
-						// If success count for sending ops emails less than minimum quoram, put to dead letter queue
-						log.WithFields(logrus.Fields{
-							"err":     err.Error(),
-							"message": whitelistRequest,
-						}).Error("Failed to reach required number of ops")
-						d.Nack(false, false)
-					}
-					d.Ack(false)
-				}
-			}
-		}
-	}()
+	go worker.runLoop(msgs)
 	log.Info("Worker started. Listening for messages..")
 	wg.Done()
 
 	<-forever
 }
 
-func emailDecision(whitelistRequest types.WhitelistRequest, c *config.Config) error {
-	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), c.PassPhrase)
+func (worker *Worker) runLoop(msgs <-chan amqp.Delivery) {
+	log := worker.logger
+	for d := range msgs {
+		whitelistRequest, err := deserialize(d.Body)
+		if err != nil {
+			log.WithFields(logrus.Fields{
+				"messageBody": d.Body,
+				"err":         err,
+			}).Error("Unable to decode message into whitelistRequest")
+			// Unable to process this message, put to the dead-letter queue
+			d.Nack(false, false)
+		} else {
+			log.WithFields(logrus.Fields{
+				"username": whitelistRequest.Username,
+				"status":   whitelistRequest.Status,
+				"ID":       whitelistRequest.ID,
+			}).Info("Received new task")
+			// Concrete actions to do when receiving task from message queue
+			// From the message body to determine which type of work to do
+			if whitelistRequest.Status == "Approved" || whitelistRequest.Status == "Denied" {
+				// Need to send update status back to the user
+				// Put message to dead letter queue for later investigation if unable to send decision email
+				err := worker.emailDecision(whitelistRequest)
+				if err != nil {
+					log.WithFields(logrus.Fields{
+						"err":     err.Error(),
+						"message": whitelistRequest,
+					}).Error("Failed to send decision email")
+					d.Nack(false, false)
+				}
+				d.Ack(false)
+			} else if whitelistRequest.Status == "Pending" {
+				// Need to handle new request
+				// Send application confirmation email to user
+				worker.emailConfirmation(whitelistRequest)
+				// Send approval request emails to op(s)
+				err := worker.emailToOps(whitelistRequest, 1)
+				if err != nil {
+					// If success count for sending ops emails less than minimum quoram, put to dead letter queue
+					log.WithFields(logrus.Fields{
+						"err":     err.Error(),
+						"message": whitelistRequest,
+					}).Error("Failed to reach required number of ops")
+					d.Nack(false, false)
+				}
+				d.Ack(false)
+			}
+		}
+	}
+}
+func (worker *Worker) emailDecision(whitelistRequest types.WhitelistRequest) error {
+	log := worker.logger
+	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), worker.c.PassPhrase)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"err": err,
@@ -153,7 +161,7 @@ func emailDecision(whitelistRequest types.WhitelistRequest, c *config.Config) er
 		subject = "Update regarding your request to join the server"
 		template = "./mailer/templates/deny.html"
 	}
-	err = mailer.Send(template, map[string]string{"link": requestIDToken}, subject, whitelistRequest.Email, c)
+	err = mailer.Send(template, map[string]string{"link": requestIDToken}, subject, whitelistRequest.Email, worker.c)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"recipent": whitelistRequest.Email,
@@ -167,9 +175,10 @@ func emailDecision(whitelistRequest types.WhitelistRequest, c *config.Config) er
 	return err
 }
 
-func emailConfirmation(whitelistRequest types.WhitelistRequest, c *config.Config) error {
+func (worker *Worker) emailConfirmation(whitelistRequest types.WhitelistRequest) error {
+	log := worker.logger
 	subject := "Your request to join the server has been received"
-	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), c.PassPhrase)
+	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), worker.c.PassPhrase)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"err": err,
@@ -177,7 +186,7 @@ func emailConfirmation(whitelistRequest types.WhitelistRequest, c *config.Config
 		return err
 	}
 	confirmationLink := os.Getenv("FRONTEND_DEPLOYED_URL") + "status/" + requestIDToken
-	err = mailer.Send("./mailer/templates/confirmation.html", map[string]string{"link": confirmationLink}, subject, whitelistRequest.Email, c)
+	err = mailer.Send("./mailer/templates/confirmation.html", map[string]string{"link": confirmationLink}, subject, whitelistRequest.Email, worker.c)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"recipent": whitelistRequest.Email,
@@ -191,18 +200,19 @@ func emailConfirmation(whitelistRequest types.WhitelistRequest, c *config.Config
 	return err
 }
 
-func emailToOps(whitelistRequest types.WhitelistRequest, quoram int, ops []string, c *config.Config) error {
+func (worker *Worker) emailToOps(whitelistRequest types.WhitelistRequest, quoram int) error {
+	log := worker.logger
 	subject := "[Action Required] Whitelist request from " + whitelistRequest.Username
 	successCount := 0
-	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), c.PassPhrase)
+	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), worker.c.PassPhrase)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"err": err,
 		}).Error("Failed to encode requestID Token")
 		return err
 	}
-	for _, op := range ops {
-		opEmailToken, err := utils.EncodeAndEncrypt(op, c.PassPhrase)
+	for _, op := range worker.c.Ops {
+		opEmailToken, err := utils.EncodeAndEncrypt(op, worker.c.PassPhrase)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				"err": err,
@@ -210,7 +220,7 @@ func emailToOps(whitelistRequest types.WhitelistRequest, quoram int, ops []strin
 			return err
 		}
 		opLink := os.Getenv("FRONTEND_DEPLOYED_URL") + "action/" + requestIDToken + "?adm=" + opEmailToken
-		err = mailer.Send("./mailer/templates/ops.html", map[string]string{"link": opLink}, subject, op, c)
+		err = mailer.Send("./mailer/templates/ops.html", map[string]string{"link": opLink}, subject, op, worker.c)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				"recipent": op,

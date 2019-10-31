@@ -56,10 +56,13 @@ func main() {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	// Start the worker
+	workerLogger := log.WithField("origin", "worker")
+	worker := worker.NewWorker(config, workerLogger)
 	go worker.Start(&wg)
 	// Setup and start the http REST API server
 	dbSvc := db.NewService(client)
-	httpServer := server.NewService(dbSvc, broker, config, log)
+	serverLogger := log.WithField("origin", "server")
+	httpServer := server.NewService(dbSvc, broker, config, serverLogger)
 	go httpServer.Listen(config.APIPort, &wg)
 	wg.Wait()
 	log.Info("Everything is up.")

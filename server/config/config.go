@@ -19,8 +19,6 @@ type Config struct {
 	SMTPPassword    string   `yaml:"SMTPPassword"`
 	Ops             []string `yaml:",flow"`
 	PassPhrase      string   `yaml:"passphrase"`
-	WorkerLogFile   string   `yaml:"workerLogFile"`
-	ServerLogFile   string   `yaml:"serverLogFile"`
 	JWTTokenSecret  string   `yaml:"jwtTokenSecret"`
 	AdminUsername   string   `yaml:"adminUsername"`
 	AdminPassword   string   `yaml:"adminPassword"`

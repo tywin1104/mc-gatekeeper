@@ -23,11 +23,11 @@ type Service struct {
 	router    *mux.Router
 	broker    *broker.Service
 	c         *config.Config
-	logger    *logrus.Logger
+	logger    *logrus.Entry
 }
 
 // NewService create new mongoDb service that handles database level operations
-func NewService(db *db.Service, broker *broker.Service, c *config.Config, logger *logrus.Logger) *Service {
+func NewService(db *db.Service, broker *broker.Service, c *config.Config, logger *logrus.Entry) *Service {
 	return &Service{
 		dbService: db,
 		router:    mux.NewRouter().StrictSlash(true),
@@ -74,7 +74,7 @@ func (svc *Service) Listen(port string, wg *sync.WaitGroup) {
 	}()
 }
 
-func waitForHTTPServer(wg *sync.WaitGroup, port, endpoint string, log *logrus.Logger) {
+func waitForHTTPServer(wg *sync.WaitGroup, port, endpoint string, log *logrus.Entry) {
 	var client http.Client
 	for {
 		resp, err := client.Get(fmt.Sprintf("http://localhost:%s/%s", port, endpoint))
