@@ -7,9 +7,8 @@ spec:
   selector:
     app: mc-whitelist
     tier: {{ .Chart.Name }}
-  type: LoadBalancer
   ports:
   - protocol: TCP
     port: 80
-    targetPort: 80
+    targetPort: 8080
 ---
