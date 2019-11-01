@@ -18,4 +18,5 @@ type WhitelistRequest struct {
 	ProcessedTimestamp time.Time              `bson:"processedTimestamp" json:"processedTimestamp" json:",omitempty"`
 	Admin              string                 `bson:"admin" json:"admin" json:",omitempty"`
 	Info               map[string]interface{} `bson:"info" json:"info" json:",omitempty"`
+	Assignees          []string               `bson:"assignees" json:"assignees" json:",omitempty"`
 }

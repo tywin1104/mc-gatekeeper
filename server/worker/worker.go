@@ -4,28 +4,34 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"math/rand"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"github.com/tywin1104/mc-whitelist/config"
+	"github.com/tywin1104/mc-whitelist/db"
 	"github.com/tywin1104/mc-whitelist/mailer"
 	"github.com/tywin1104/mc-whitelist/types"
 	"github.com/tywin1104/mc-whitelist/utils"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // Worker defines message queue worker
 type Worker struct {
-	c      *config.Config
-	logger *logrus.Entry
+	dbService *db.Service
+	c         *config.Config
+	logger    *logrus.Entry
 }
 
 // NewWorker creates a worker to constantly listen and handle messages in the queue
-func NewWorker(c *config.Config, logger *logrus.Entry) *Worker {
+func NewWorker(db *db.Service, c *config.Config, logger *logrus.Entry) *Worker {
 	return &Worker{
-		c:      c,
-		logger: logger,
+		dbService: db,
+		c:         c,
+		logger:    logger,
 	}
 }
 
@@ -102,47 +108,84 @@ func (worker *Worker) runLoop(msgs <-chan amqp.Delivery) {
 				"messageBody": d.Body,
 				"err":         err,
 			}).Error("Unable to decode message into whitelistRequest")
-			// Unable to process this message, put to the dead-letter queue
+			// Unable to decode this message, put to the dead-letter queue
 			d.Nack(false, false)
 		} else {
-			log.WithFields(logrus.Fields{
-				"username": whitelistRequest.Username,
-				"status":   whitelistRequest.Status,
-				"ID":       whitelistRequest.ID,
-			}).Info("Received new task")
 			// Concrete actions to do when receiving task from message queue
 			// From the message body to determine which type of work to do
-			if whitelistRequest.Status == "Approved" || whitelistRequest.Status == "Denied" {
-				// Need to send update status back to the user
-				// Put message to dead letter queue for later investigation if unable to send decision email
-				err := worker.emailDecision(whitelistRequest)
-				if err != nil {
-					log.WithFields(logrus.Fields{
-						"err":     err.Error(),
-						"message": whitelistRequest,
-					}).Error("Failed to send decision email")
-					d.Nack(false, false)
-				}
-				d.Ack(false)
-			} else if whitelistRequest.Status == "Pending" {
-				// Need to handle new request
-				// Send application confirmation email to user
-				worker.emailConfirmation(whitelistRequest)
-				// Send approval request emails to op(s)
-				err := worker.emailToOps(whitelistRequest, 1)
-				if err != nil {
-					// If success count for sending ops emails less than minimum quoram, put to dead letter queue
-					log.WithFields(logrus.Fields{
-						"err":     err.Error(),
-						"message": whitelistRequest,
-					}).Error("Failed to reach required number of ops")
-					d.Nack(false, false)
-				}
-				d.Ack(false)
+			switch whitelistRequest.Status {
+			case "Approved":
+				worker.processApproval(d, whitelistRequest)
+			case "Denied":
+				worker.processDenial(d, whitelistRequest)
+			case "Pending":
+				worker.processNewRequest(d, whitelistRequest)
 			}
 		}
 	}
 }
+
+// Nack if decision email is not sent. Ack if sent.
+func (worker *Worker) processApproval(d amqp.Delivery, request types.WhitelistRequest) {
+	worker.logger.WithFields(logrus.Fields{
+		"username": request.Username,
+		"ID":       request.ID,
+		"Type":     "Approval Task",
+	}).Info("Received new task")
+	err := worker.emailDecision(request)
+	if err != nil {
+		d.Nack(false, false)
+		return
+	}
+	// TODO: Add interface to do concrete whitelist action on the game server
+	d.Ack(false)
+}
+
+// Nack if decision email is not sent. Ack if sent.
+func (worker *Worker) processDenial(d amqp.Delivery, request types.WhitelistRequest) {
+	// Need to send update status back to the user
+	// Put message to dead letter queue for later investigation if unable to send decision email
+	worker.logger.WithFields(logrus.Fields{
+		"username": request.Username,
+		"ID":       request.ID,
+		"Type":     "Denial Task",
+	}).Info("Received new task")
+	err := worker.emailDecision(request)
+	if err != nil {
+		worker.logger.WithFields(logrus.Fields{
+			"err":     err.Error(),
+			"message": request,
+		}).Error("Failed to send decision email")
+		d.Nack(false, false)
+		return
+	}
+	d.Ack(false)
+}
+
+//Nack: successful ops emails less than threshold; confirmation email does not count
+func (worker *Worker) processNewRequest(d amqp.Delivery, request types.WhitelistRequest) {
+	worker.logger.WithFields(logrus.Fields{
+		"username": request.Username,
+		"ID":       request.ID,
+		"Type":     "New Reqeust Task",
+	}).Info("Received new task")
+	// Need to handle new request
+	// Send application confirmation email to user
+	worker.emailConfirmation(request)
+	// Send approval request emails to op(s)
+	successCount, err := worker.emailToOps(request, 1)
+	if err != nil {
+		// If success count for sending ops emails less than minimum quoram, put to dead letter queue
+		worker.logger.WithFields(logrus.Fields{
+			"message":      request,
+			"successCount": successCount,
+		}).Error("Failed to dispatch action emails to required number of ops")
+		d.Nack(false, false)
+		return
+	}
+	d.Ack(false)
+}
+
 func (worker *Worker) emailDecision(whitelistRequest types.WhitelistRequest) error {
 	log := worker.logger
 	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), worker.c.PassPhrase)
@@ -200,7 +243,7 @@ func (worker *Worker) emailConfirmation(whitelistRequest types.WhitelistRequest)
 	return err
 }
 
-func (worker *Worker) emailToOps(whitelistRequest types.WhitelistRequest, quoram int) error {
+func (worker *Worker) emailToOps(whitelistRequest types.WhitelistRequest, quoram int) (int, error) {
 	log := worker.logger
 	subject := "[Action Required] Whitelist request from " + whitelistRequest.Username
 	successCount := 0
@@ -209,15 +252,20 @@ func (worker *Worker) emailToOps(whitelistRequest types.WhitelistRequest, quoram
 		log.WithFields(logrus.Fields{
 			"err": err,
 		}).Error("Failed to encode requestID Token")
-		return err
+		return 0, err
 	}
-	for _, op := range worker.c.Ops {
+	// ops who received the action emails successfully will be added to the assignees
+	// and attach as the metadata for the request db object
+	assignees := []string{}
+	// Get target ops to send action emails according to the configured dispatching strategy
+	ops := worker.getTargetOps()
+	for _, op := range ops {
 		opEmailToken, err := utils.EncodeAndEncrypt(op, worker.c.PassPhrase)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				"err": err,
 			}).Error("Failed to encode opEmail Token")
-			return err
+			return 0, err
 		}
 		opLink := os.Getenv("FRONTEND_DEPLOYED_URL") + "action/" + requestIDToken + "?adm=" + opEmailToken
 		err = mailer.Send("./mailer/templates/ops.html", map[string]string{"link": opLink}, subject, op, worker.c)
@@ -230,14 +278,44 @@ func (worker *Worker) emailToOps(whitelistRequest types.WhitelistRequest, quoram
 			log.WithFields(logrus.Fields{
 				"recipent": op,
 			}).Info("Action email sent to op")
+			assignees = append(assignees, op)
 			successCount++
 		}
 	}
-	if successCount >= quoram {
-		return nil
+	// Attach assignee info to the db request object to keep track of each request
+	if len(assignees) > 0 {
+		requestedChange := make(bson.M)
+		requestedChange["assignees"] = assignees
+		_, err := worker.dbService.UpdateRequest(bson.D{{"_id", whitelistRequest.ID}}, bson.M{
+			"$set": requestedChange,
+		})
+		if err != nil {
+			log.WithFields(logrus.Fields{
+				"err":       err,
+				"assignees": assignees,
+				"ID":        whitelistRequest.ID.Hex(),
+			}).Error("Unable to update request db object with assignees metadata")
+		}
 	}
-	return errors.New("Failed to send action emails to more than half of ops")
+	if successCount >= quoram {
+		return successCount, nil
+	}
+	return successCount, errors.New("Success count does not reach minimum requirement")
 }
+
+func (worker *Worker) getTargetOps() []string {
+	// Strategy: Broadcast / Random with threshold
+	ops := worker.c.Ops
+	if worker.c.DispatchingStrategy == "Broadcast" {
+		return ops
+	}
+	n := worker.c.RandomDispatchinThreshold
+	// Choose random n out of all ops as the target request handlers
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(ops), func(i, j int) { ops[i], ops[j] = ops[j], ops[i] })
+	return ops[:n]
+}
+
 func deserialize(b []byte) (types.WhitelistRequest, error) {
 	var msg types.WhitelistRequest
 	buf := bytes.NewBuffer(b)

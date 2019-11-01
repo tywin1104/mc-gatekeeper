@@ -40,6 +40,7 @@ func main() {
 	}
 	log.Info("Mongodb connection established")
 
+	dbSvc := db.NewService(client)
 	conn, err := amqp.Dial(config.RabbitmqConnStr)
 	if err != nil {
 		log.Fatal("Unable to connect to rabbitmq: " + err.Error())
@@ -57,10 +58,9 @@ func main() {
 	wg.Add(2)
 	// Start the worker
 	workerLogger := log.WithField("origin", "worker")
-	worker := worker.NewWorker(config, workerLogger)
+	worker := worker.NewWorker(dbSvc, config, workerLogger)
 	go worker.Start(&wg)
 	// Setup and start the http REST API server
-	dbSvc := db.NewService(client)
 	serverLogger := log.WithField("origin", "server")
 	httpServer := server.NewService(dbSvc, broker, config, serverLogger)
 	go httpServer.Listen(config.APIPort, &wg)
