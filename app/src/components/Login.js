@@ -4,8 +4,10 @@ import Button from '@material-ui/core/Button';
 import Typography from '@material-ui/core/Typography';
 import Container from '@material-ui/core/Container';
 import AuthService from '../service/AuthService';
-import { ReCaptcha } from 'react-recaptcha-google'
+import Recaptcha from 'react-google-invisible-recaptcha';
+import RecaptchaService from '../service/RecaptchaService'
 
+const RECPTCHA_SITEKEY = window.RECPTCHA_SITEKEY ? window.RECPTCHA_SITEKEY : "";
 class Login extends React.Component {
 
     constructor(props, context){
@@ -15,53 +17,47 @@ class Login extends React.Component {
             password: '',
         }
         this.login = this.login.bind(this);
-        this.onLoadRecaptcha = this.onLoadRecaptcha.bind(this);
-        this.verifyCallback = this.verifyCallback.bind(this);
+        this.onResolved = this.onResolved.bind( this );
     }
 
     componentDidMount() {
         localStorage.clear();
-        if (this.captchaDemo) {
-            console.log("started, just a second...")
-            this.captchaDemo.reset();
-            this.captchaDemo.execute();
-        }
-      }
+    }
 
-      onLoadRecaptcha() {
-          if (this.captchaDemo) {
-              this.captchaDemo.reset();
-              this.captchaDemo.execute();
-          }
-      }
 
-      verifyCallback(recaptchaToken) {
-        // console.log(recaptchaToken, "<= your recaptcha token")
-        this.login()
-      }
 
     login = (e) => {
         e.preventDefault();
-        const credentials = {username: this.state.username, password: this.state.password};
-        AuthService.login(credentials).then(res => {
-            if(res.status === 200){
-                localStorage.setItem("token", JSON.stringify(res.data.token));
-                this.props.history.push('/dashboard');
+        this.recaptcha.reset()
+        this.recaptcha.execute();
+    };
+
+    onResolved() {
+        RecaptchaService.verify(this.recaptcha.getResponse())
+        .then(res => {
+            if (res.status === 200 && res.data.success) {
+                const credentials = {username: this.state.username, password: this.state.password};
+                AuthService.login(credentials).then(res => {
+                    if(res.status === 200){
+                        localStorage.setItem("token", JSON.stringify(res.data.token));
+                        this.props.history.push('/dashboard');
+                    }
+                })
+                .catch(error => {
+                    if (error.response) {
+                        if(error.response.status === 401) {
+                            alert("Wrong credentials")
+                            this.setState({
+                                // clear input field
+                                username: "",
+                                password: ""
+                            })
+                        }
+                    }
+                });
             }
         })
-        .catch(error => {
-            if (error.response) {
-                if(error.response.status === 401) {
-                    alert("Wrong credentials")
-                    this.setState({
-                        // clear input field
-                        username: "",
-                        password: ""
-                    })
-                }
-            }
-        });
-    };
+      }
 
     onChange = (e) =>
         this.setState({ [e.target.name]: e.target.value });
@@ -79,14 +75,10 @@ class Login extends React.Component {
 
                         <Button variant="contained" color="secondary" type="submit">Login</Button>
                     </form>
-                    <ReCaptcha
-                        ref={(el) => {this.captchaDemo = el;}}
-                        size="invisible"
-                        render="explicit"
-                        sitekey="6Lc_vL8UAAAAAMNIAhLWtEDyoQDtjzwygxP1knim"
-                        onloadCallback={this.onLoadRecaptcha}
-                        verifyCallback={this.verifyCallback}
-                    />
+                    <Recaptcha
+                    ref={ ref => this.recaptcha = ref }
+                    sitekey={RECPTCHA_SITEKEY}
+                    onResolved={ this.onResolved } />
                 </Container>
             </React.Fragment>
         )

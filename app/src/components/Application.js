@@ -2,14 +2,15 @@ import React from "react";
 import { Button, Form, FormGroup, Label, Input, UncontrolledAlert, Jumbotron} from 'reactstrap';
 import './Application.css';
 import Container from '@material-ui/core/Container';
-import { ReCaptcha } from 'react-recaptcha-google'
+import Recaptcha from 'react-google-invisible-recaptcha';
 import RequestsService from '../service/RequestsService'
+import RecaptchaService from '../service/RecaptchaService'
 
+const RECPTCHA_SITEKEY = window.RECPTCHA_SITEKEY ? window.RECPTCHA_SITEKEY : "";
 class Application extends React.Component {
-  constructor(props, context) {
-    super(props, context);
-    this.onLoadRecaptcha = this.onLoadRecaptcha.bind(this);
-    this.verifyCallback = this.verifyCallback.bind(this);
+  constructor(props) {
+    super(props);
+    this.onResolved = this.onResolved.bind( this );
     this.state = {
       email : '',
       username: '',
@@ -18,55 +19,48 @@ class Application extends React.Component {
       applicationText: '',
       errorMsg: '',
       success: false,
-      recaptchaVerified: false
     };
   }
-  componentDidMount() {
-    if (this.submitionCaptcha) {
-        console.log("started, just a second...")
-        this.submitionCaptcha.reset();
-    }
-  }
-  onLoadRecaptcha() {
-      if (this.submitionCaptcha) {
-          this.submitionCaptcha.reset();
-      }
-  }
-  verifyCallback(recaptchaToken) {
-    this.setState({recaptchaVerified: true})
-    // console.log(recaptchaToken, "<= your recaptcha token")
+
+  onResolved() {
+    RecaptchaService.verify(this.recaptcha.getResponse())
+    .then(res => {
+      if (res.status === 200 && res.data.success) {
+        RequestsService.createRequest({
+          email: this.state.email,
+          username: this.state.username,
+          gender: this.state.gender,
+          age: parseInt(this.state.age),
+          info: {
+            applicationText: this.state.applicationText
+          }
+        })
+        .then(res => {
+          if (res.status === 200) {
+              this.setState({
+                  success: true
+              })
+          }})
+        .catch(error => {
+            if (error.response) {
+                if(error.response.status === 400) {
+                    this.setState({
+                        errorMsg: error.response.data.message
+                    })
+                }else {
+                    this.setState({
+                        errorMsg: "Internal server error. Please try later or contact server admin"
+                    })
+                }
+            }
+        });
+    }})
   }
 
   onSubmit = (event) => {
     event.preventDefault();
-    RequestsService.createRequest({
-      email: this.state.email,
-      username: this.state.username,
-      gender: this.state.gender,
-      age: parseInt(this.state.age),
-      info: {
-        applicationText: this.state.applicationText
-      }
-    })
-    .then(res => {
-      if (res.status === 200) {
-          this.setState({
-              success: true
-          })
-      }})
-    .catch(error => {
-        if (error.response) {
-            if(error.response.status === 400) {
-                this.setState({
-                    errorMsg: error.response.data.message
-                })
-            }else {
-                this.setState({
-                    errorMsg: "Internal server error. Please try later or contact server admin"
-                })
-            }
-        }
-    });
+    this.recaptcha.reset();
+    this.recaptcha.execute();
   }
 
   handleInputChange = (event) => {
@@ -141,16 +135,11 @@ render() {
           I've read the <a href="#">server rules</a> and I agree to submit my application to join
         </Label>
       </FormGroup>
-      <ReCaptcha
-            ref={(el) => {this.submitionCaptcha = el;}}
-            size="normal"
-            data-theme="dark"
-            render="explicit"
-            sitekey="6Lc_vL8UAAAAAMNIAhLWtEDyoQDtjzwygxP1knim"
-            onloadCallback={this.onLoadRecaptcha}
-            verifyCallback={this.verifyCallback}
-        />
-      <Button color="primary" disabled={!this.state.recaptchaVerified} type="submit"  size="lg">
+      <Recaptcha
+          ref={ ref => this.recaptcha = ref }
+          sitekey={RECPTCHA_SITEKEY}
+          onResolved={ this.onResolved } />
+      <Button color="primary" type="submit"  size="lg">
         Submit Application
       </Button>
     </Form>

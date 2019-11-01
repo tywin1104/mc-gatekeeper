@@ -1,6 +1,6 @@
 #!/bin/bash
- if [ ! -z ${API_HOST} ]; then
+ if [ ! -z ${RECPTCHA_SITEKEY} ]; then
  cat <<END
- window.REACT_APP_API_HOST="${API_HOST}";
+ window.RECPTCHA_SITEKEY="${RECPTCHA_SITEKEY}";
 END
 fi
