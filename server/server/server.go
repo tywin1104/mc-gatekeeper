@@ -118,6 +118,8 @@ func (svc *Service) routes() {
 
 	// Server health endpoint
 	svc.router.HandleFunc("/health", svc.handleHealthCheck()).Methods("GET")
+	// Recaptcha verification endpoint
+	svc.router.HandleFunc("/api/recaptcha/verify", svc.handleVerifyRecaptcha()).Methods("POST")
 }
 
 func (svc *Service) handleVerifyAdminToken() http.HandlerFunc {

@@ -25,6 +25,7 @@ type Config struct {
 	AdminPassword             string   `yaml:"adminPassword"`
 	DispatchingStrategy       string   `yaml:"dispatchingStrategy"`
 	RandomDispatchinThreshold int      `yaml:"randomDispatchinThreshold"`
+	RecaptchaPrivateKey       string   `yaml:"recaptchaPrivateKey"`
 }
 
 // LoadConfig loads config file

@@ -152,10 +152,6 @@ func (worker *Worker) processDenial(d amqp.Delivery, request types.WhitelistRequ
 	}).Info("Received new task")
 	err := worker.emailDecision(request)
 	if err != nil {
-		worker.logger.WithFields(logrus.Fields{
-			"err":     err.Error(),
-			"message": request,
-		}).Error("Failed to send decision email")
 		d.Nack(false, false)
 		return
 	}
@@ -209,6 +205,7 @@ func (worker *Worker) emailDecision(whitelistRequest types.WhitelistRequest) err
 		log.WithFields(logrus.Fields{
 			"recipent": whitelistRequest.Email,
 			"err":      err,
+			"ID":       whitelistRequest.ID.Hex(),
 		}).Error("Failed to send decision email")
 	} else {
 		log.WithFields(logrus.Fields{
@@ -234,6 +231,7 @@ func (worker *Worker) emailConfirmation(whitelistRequest types.WhitelistRequest)
 		log.WithFields(logrus.Fields{
 			"recipent": whitelistRequest.Email,
 			"err":      err,
+			"ID":       whitelistRequest.ID.Hex(),
 		}).Error("Failed to send confirmation email")
 	} else {
 		log.WithFields(logrus.Fields{
@@ -273,10 +271,12 @@ func (worker *Worker) emailToOps(whitelistRequest types.WhitelistRequest, quoram
 			log.WithFields(logrus.Fields{
 				"recipent": op,
 				"err":      err,
+				"ID":       whitelistRequest.ID.Hex(),
 			}).Error("Failed to send email to op")
 		} else {
 			log.WithFields(logrus.Fields{
 				"recipent": op,
+				"ID":       whitelistRequest.ID.Hex(),
 			}).Info("Action email sent to op")
 			assignees = append(assignees, op)
 			successCount++
