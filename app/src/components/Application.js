@@ -6,7 +6,8 @@ import Recaptcha from 'react-google-invisible-recaptcha';
 import RequestsService from '../service/RequestsService'
 import RecaptchaService from '../service/RecaptchaService'
 
-const RECPTCHA_SITEKEY = window.RECPTCHA_SITEKEY ? window.RECPTCHA_SITEKEY : "";
+const RECAPTCHA_SITEKEY = window.RECAPTCHA_SITEKEY ? window.RECAPTCHA_SITEKEY : "";
+console.log(RECAPTCHA_SITEKEY)
 class Application extends React.Component {
   constructor(props) {
     super(props);
@@ -137,7 +138,7 @@ render() {
       </FormGroup>
       <Recaptcha
           ref={ ref => this.recaptcha = ref }
-          sitekey={RECPTCHA_SITEKEY}
+          sitekey={RECAPTCHA_SITEKEY}
           onResolved={ this.onResolved } />
       <Button color="primary" type="submit"  size="lg">
         Submit Application

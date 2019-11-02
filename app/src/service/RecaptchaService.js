@@ -5,7 +5,7 @@ const API_HOST = window.REACT_APP_API_HOST ? window.REACT_APP_API_HOST : "";
 class RecaptchaService {
 
     verify(recapchaToken) {
-        return axios.post(`${API_HOST}/api/recaptcha/verify`, {recapchaToken})
+        return axios.post(`${API_HOST}/api/v1/recaptcha/verify`, {recapchaToken})
     }
 }
 

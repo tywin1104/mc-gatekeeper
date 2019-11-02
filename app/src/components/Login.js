@@ -7,7 +7,9 @@ import AuthService from '../service/AuthService';
 import Recaptcha from 'react-google-invisible-recaptcha';
 import RecaptchaService from '../service/RecaptchaService'
 
-const RECPTCHA_SITEKEY = window.RECPTCHA_SITEKEY ? window.RECPTCHA_SITEKEY : "";
+const RECAPTCHA_SITEKEY = window.RECAPTCHA_SITEKEY ? window.RECAPTCHA_SITEKEY : "";
+console.log(RECAPTCHA_SITEKEY)
+
 class Login extends React.Component {
 
     constructor(props, context){
@@ -77,7 +79,7 @@ class Login extends React.Component {
                     </form>
                     <Recaptcha
                     ref={ ref => this.recaptcha = ref }
-                    sitekey={RECPTCHA_SITEKEY}
+                    sitekey={RECAPTCHA_SITEKEY}
                     onResolved={ this.onResolved } />
                 </Container>
             </React.Fragment>

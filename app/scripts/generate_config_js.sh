@@ -1,6 +1,6 @@
 #!/bin/bash
- if [ ! -z ${RECPTCHA_SITEKEY} ]; then
+ if [ ! -z ${RECAPTCHA_SITEKEY} ]; then
  cat <<END
- window.RECPTCHA_SITEKEY="${RECPTCHA_SITEKEY}";
+ window.RECAPTCHA_SITEKEY="${RECAPTCHA_SITEKEY}";
 END
 fi

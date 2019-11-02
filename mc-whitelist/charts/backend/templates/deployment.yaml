@@ -23,7 +23,7 @@ spec:
             - containerPort: 8080
           env:
           - name: FRONTEND_DEPLOYED_URL
-            value: "http://service-mc-whitelist-{{ .Chart.Name }}/"
+            value: {{ .Values.domain }}
           livenessProbe:
             httpGet:
               path: /health

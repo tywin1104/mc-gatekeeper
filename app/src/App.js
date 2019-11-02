@@ -10,12 +10,8 @@ import CheckStatus from './components/CheckStatus'
 import AdminAction from './components/AdminAction'
 import Dashboard from './components/Dashboard/Dashboard'
 import Login from './components/Login'
-import { loadReCaptcha } from 'react-recaptcha-google'
 
 class App extends React.Component  {
-  componentDidMount() {
-    loadReCaptcha();
-  }
   render() {
     return (
       <Router>

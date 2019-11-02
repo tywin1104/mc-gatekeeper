@@ -309,7 +309,7 @@ func (worker *Worker) getTargetOps() []string {
 	if worker.c.DispatchingStrategy == "Broadcast" {
 		return ops
 	}
-	n := worker.c.RandomDispatchinThreshold
+	n := worker.c.RandomDispatchingThreshold
 	// Choose random n out of all ops as the target request handlers
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(ops), func(i, j int) { ops[i], ops[j] = ops[j], ops[i] })

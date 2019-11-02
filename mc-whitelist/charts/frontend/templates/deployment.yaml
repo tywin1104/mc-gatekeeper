@@ -18,6 +18,9 @@ spec:
       containers:
         - name: mc-whitelist-app
           image: {{ .Values.image.registry }}:{{ .Values.image.tag }}
+          env:
+          - name: RECAPTCHA_SITEKEY
+            value: {{ .Values.recaptcha_sitekey}}
           imagePullPolicy: Always
           ports:
             - containerPort: 80
