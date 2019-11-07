@@ -1,0 +1,417 @@
+swagger: '2.0'
+info:
+  description: |
+    This api is consumed by our frontend react app in order to keep track of the whitelist requests for the game server
+  version: 1.0.0
+  title: mc-whitelist API
+  termsOfService: http://swagger.io/terms/
+  contact:
+    email: tiaven1104@gmail.com
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+# basePath: /api/v1
+tags:
+- name: requests
+  description: Publicly available endpoints for the client application that related to whitelist requests 
+- name: auth
+  description: Authentication endpoints for accessing internal API by admin user
+- name: internal
+  description: Internal endpoints that are only exposed to admin user through the client application. JWT auth token required.
+- name: utils
+  description: Some useful utility endpoints
+
+paths:
+  /requests/:
+    post:
+      tags:
+      - requests
+      summary: Create a new whitelist request
+      operationId: createRequest
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: body
+        description: Whitelist object that needs to be created
+        required: true
+        schema:
+          $ref: '#/definitions/CreateRequest'
+      responses:
+        400:
+          description: Invalid request body
+        500:
+          description: Internal server error
+        200:
+          description: Request created or there is existing pending request for that user
+  /requests/{encryptedRequestID}:
+    get:
+      tags:
+      - requests
+      summary: Get request by ID
+      description: Returns info about a single request by ID
+      operationId: getRequestByIdExternal
+      produces:
+      - application/json
+      parameters:
+      - name: encryptedRequestID
+        in: path
+        description: encrypted and url-encoded request ID that are provided by the server found inside the email 
+        required: true
+        type: string
+      responses:
+        200:
+          description: successful operation
+          schema:
+            $ref: '#/definitions/GetRequestByIDExternalResponse'
+        400:
+          description: Invalid ID supplied
+        500:
+          description: Internal server error
+    patch:
+      tags:
+      - requests
+      summary: Updates a request
+      operationId: updateRequestByIdExternal
+      produces:
+      - application/json
+      parameters:
+      - name: encryptedRequestID
+        in: path
+        description: encrypted and url-encoded request ID that are provided by the server found inside the email
+        required: true
+        type: string
+      - in: query
+        name: adm
+        description: encrypted and url-encoded admin token (op's email) that are provided by the server found inside the email
+        required: true
+        type: string
+      - in: body
+        name: update
+        description: Update that need to be made to the existing request
+        schema:
+          $ref: '#/definitions/RequestFull'
+      responses:
+        200:
+          description: successful operation
+          schema:
+            $ref: '#/definitions/UpdateRequestByIdExternalResponse'
+        400:
+          description: Invalid ID or admin token supplied
+        500:
+          description: Internal server error
+  /internal/requests/:
+    get:
+      security:
+        - Bearer: []
+      tags:
+      - internal
+      summary: Get request by ID
+      description: Returns all whitelist requests
+      operationId: getRequestByIdInternal
+      produces:
+      - application/json
+      responses:
+        200:
+          description: successful operation
+          schema:
+            $ref: '#/definitions/GetAllRequestsResponse'
+        500:
+          description: Internal server error
+  /internal/requests/{RequestID}:
+    patch:
+      tags:
+      - internal
+      security:
+        - Bearer: []
+      summary: Update a request
+      operationId: updateRequestByIdInternal
+      produces:
+      - application/json
+      parameters:
+      - name: RequestID
+        in: path
+        description: request ID
+        required: true
+        type: string
+      - in: body
+        name: update
+        description: Update that need to be made to the existing request
+        schema:
+          $ref: '#/definitions/RequestFull'
+      responses:
+        200:
+          description: successful operation
+          schema:
+            $ref: '#/definitions/UpdateRequestByIdExternalResponse'
+        400:
+          description: Invalid ID or closed request
+        500:
+          description: Internal server error
+  /auth/:
+    post:
+      tags:
+      - auth
+      summary: Admin log in and generate required auth token if success
+      operationId: loginAdmin
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: credential
+        description: Credentials used for admin login
+        required: true
+        schema:
+          $ref: '#/definitions/LoginCredential'
+      responses:
+        400:
+          description: Invalid request body
+        401:
+          description: wrong login credentials
+        500:
+          description: internal server error
+        200:
+          description: successful login
+          schema:
+            $ref: '#/definitions/SuccessfulLoginResponse'
+
+  /verify/{encryptedRequestID}/:
+    get:
+      tags:
+      - utils
+      summary: Verify encrypted admin token
+      operationId: verifyAdmToken
+      parameters:
+      - in: query
+        name: adm
+        description: encrypted and url-encoded admin token issued from the server
+        required: true
+        type: string
+      - name: encryptedRequestID
+        in: path
+        description: encrypted and url-encoded request ID that are provided by the server found inside the email 
+        required: true
+        type: string
+
+      responses:
+        200:
+          description: Valid admin token
+        400:
+          description: Missing or invalid admin token
+  /recaptcha/verify:
+    post:
+      tags:
+      - utils
+      summary: Verify recaptcha token from client application
+      operationId: verifyRecaptcha
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: credential
+        description: Recaptcha token obtained after user complete the challenge on the client application
+        required: true
+        schema:
+          $ref: '#/definitions/VerifyRecapchaRequest'
+      responses:
+        500:
+          description: internal server error
+        200:
+          description: Verification complete. Need to check the success field for validity of given token 
+          schema:
+            $ref: '#/definitions/VerifyRecapchaResponse'
+
+securityDefinitions:
+  Bearer:
+    type: apiKey
+    name: Authorization
+    in: header
+definitions:
+  GetRequestByIDExternalResponse:
+    type: object
+    properties:
+      request:
+        $ref: '#/definitions/GetRequestByIDExternalResponseContent'
+  GetRequestByIDExternalResponseContent:
+    type: object
+    properties:
+      email:
+        type: string
+        example: user@gmail.com
+      info:
+        $ref: '#/definitions/Info'
+      status:
+        type: string
+        enum:
+        - Pending
+        - Approved
+        - Denied
+        example: Pending
+      timestamp:
+        type: string
+        example: "2019-11-06T23:07:46.586Z"
+      username:
+        type: string
+        example: username1
+
+  CreateRequest:
+    type: object
+    required:
+    - username
+    - email
+    - age
+    - gender
+    - info
+    properties:
+      info:
+        $ref: '#/definitions/Info'
+      username:
+        type: string
+        example: doggie
+      email:
+        type: string
+        example: doggie@gmail.com
+      age:
+        type: integer
+        format: int32
+        example: 19
+      gender:
+        type: string
+        enum:
+        - male
+        - female
+        - others
+        example: female
+  Info:
+    type: object
+    required:
+    - applicationText
+    properties:
+      applicationText:
+        type: string
+        example: I'd like to join the server
+  GetAllRequestsResponse:
+    type: object
+    properties:
+      requests:
+        $ref: '#/definitions/AllRequests'
+  AllRequests:
+    type: array
+    items:
+      $ref: '#/definitions/RequestFull'
+  UpdateRequestByIdExternalResponse:
+    type: object
+    properties:
+      message:
+        type: string
+        example: "success"
+      updated:
+        $ref: '#/definitions/RequestFull'
+  RequestFull:
+    type: object
+    properties:
+      _id:
+        type: string
+        example: 5db85dc33260c4c15c26e95b
+      username:
+        type: string
+        example: doggie
+      email:
+        type: string
+        example: doggie@gmail.com
+      age:
+        type: integer
+        format: int32
+      status:
+        type: string
+        enum:
+        - Pending
+        - Approved
+        - Denied
+        example: Approved
+      gender:
+        type: string
+        enum:
+        - male
+        - female
+        - others
+        example: male
+      timestamp:
+        type: string
+        example: "2019-11-06T23:07:46.586Z"
+      processedTimestamp:
+        type: string
+        example: "2019-11-07T13:07:46.586Z"
+      admin:
+        type: string
+        example: "admin1@gmail.com"
+      info:
+        $ref: '#/definitions/Info'
+      assignees:
+        type: array
+        items:
+          type: string
+  LoginCredential:
+    type: object
+    required:
+    - username
+    - password
+    properties:
+      username:
+        type: string
+        example: adminusername1
+      password:
+        type: string
+        example: adminpassword1
+  SuccessfulLoginResponse:
+    type: object
+    properties:
+      token:
+        $ref: '#/definitions/Token'
+  Token:
+    type: object
+    required:
+    - value
+    - expires
+    properties:
+      value:
+        type: string
+        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImJ3eHF4MTIzIiwiZXhwIjoxNTczMDkyOTIzfQ.0CwVTUd..." 
+      expires:
+        type: string
+        example: "2019-11-06T21:15:23.20751-05:00"
+  VerifyRecapchaRequest:
+    type: object
+    properties:
+      recapchaToken:
+        type: string
+        example: "2ed92guidb289d2gd92hg92dg2uid"
+  VerifyRecapchaResponse:
+    type: object
+    properties:
+      success:
+        type: boolean
+        example: false
+      challenge_ts:
+        type: string
+        example: "0001-01-01T00:00:00Z"
+      hostname:
+        type: string
+        example: ""
+      error-codes:
+        type: array
+        items:
+          type: string
+          example:
+           - "invalid-input-response"
+# Added by API Auto Mocking Plugin
+host: virtserver.swaggerhub.com
+basePath: /tywinzhang/mc-whitelist/1.0.0
+schemes:
+ - https
