@@ -29,14 +29,14 @@ class AdminAction extends React.Component {
     }
 
     // Verify adminToken is valid
-    RequestsService.verifyAdminToken(adminToken)
+    const { match: { params } } = this.props;
+    RequestsService.verifyAdminToken(params.id, adminToken)
     .catch(error => {
         this.setState({
             invalid: true
         })
         return
     });
-    const { match: { params } } = this.props;
     // Get current request related to this specific email ticket?
     RequestsService.getRequestByEncodedID(params.id)
     .then(res => {

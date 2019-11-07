@@ -5,4 +5,4 @@ image:
 ingress:
   certificate:  mc-whitelist-ingress-certificate
   static_ip: mc-whitelist-frontend-ingress-ip
-recaptcha_sitekey: 
+recaptcha_sitekey: 6Ld7qcAUAAAAADtzQrmz7it_EOpygwqSKuC8nY5I-

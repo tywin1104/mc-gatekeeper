@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-const API_HOST = window.REACT_APP_API_HOST ? window.REACT_APP_API_HOST : "";
-// console.log(API_HOST)
+const API_HOST = process.env.REACT_APP_API_HOST ? process.env.REACT_APP_API_HOST : "";
 
 class RequestsService {
 
@@ -47,8 +46,8 @@ class RequestsService {
     }
 
     // verify valid admin token first before displying any info in the action page
-    verifyAdminToken(admToken) {
-        return axios.get(`${API_HOST}/api/v1/verify?adm=${admToken}`)
+    verifyAdminToken(idToken, admToken) {
+        return axios.get(`${API_HOST}/api/v1/verify/${idToken}?adm=${admToken}`)
     }
 }
 

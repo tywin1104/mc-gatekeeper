@@ -94,7 +94,7 @@ func (svc *Service) routes() {
 	external.HandleFunc("/{requestIdEncoded}", svc.handlePatchRequestByID()).Methods("PATCH").Queries("adm", "{adm}")
 
 	// Endpoint to verify validity of op token for frontend to consume
-	r := svc.router.PathPrefix("/api/v1/verify").Subrouter()
+	r := svc.router.PathPrefix("/api/v1/verify/{requestIdEncoded}").Subrouter()
 	r.HandleFunc("/", svc.handleVerifyAdminToken()).Methods("GET").Queries("adm", "{adm}")
 
 	// Endpoint to authenticate admin user
@@ -138,7 +138,13 @@ func (svc *Service) handleVerifyAdminToken() http.HandlerFunc {
 			return
 		}
 		valid := false
-		for _, op := range svc.c.Ops {
+		// Check if the the decrypted admin email is valid and assigned op for this current request
+		request, _, statusCode := svc.getRequestByEncryptedID(mux.Vars(r)["requestIdEncoded"])
+		if statusCode != http.StatusOK {
+			w.WriteHeader(statusCode)
+			return
+		}
+		for _, op := range request.Assignees {
 			if admEmail == op {
 				valid = true
 			}

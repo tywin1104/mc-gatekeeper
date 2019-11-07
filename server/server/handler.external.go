@@ -13,35 +13,42 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+func (svc *Service) getRequestByEncryptedID(requestIdEncoded string) (*types.WhitelistRequest, string, int) {
+	log := svc.logger
+	requestID, err := utils.DecodeAndDecrypt(requestIdEncoded, svc.c.PassPhrase)
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"err":      err.Error(),
+			"urlParam": requestIdEncoded,
+		}).Error("Unable to decode requestID token")
+		return nil, "Unable to decode token", http.StatusBadRequest
+	}
+
+	_id, _ := primitive.ObjectIDFromHex(string(requestID))
+	requests, err := svc.dbService.GetRequests(1, bson.D{{"_id", _id}})
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"err":       err.Error(),
+			"requestID": requestID,
+		}).Error("Unable to get reqeuest by ID")
+		return nil, "Unable to get reqeuest by ID", http.StatusInternalServerError
+	}
+	if len(requests) == 0 {
+		return nil, "Resource not found", http.StatusBadRequest
+	}
+	request := requests[0]
+	return request, "", http.StatusOK
+
+}
 func (svc *Service) handleGetRequestByID() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log := svc.logger
-		requestID, err := utils.DecodeAndDecrypt(mux.Vars(r)["requestIdEncoded"], svc.c.PassPhrase)
-		if err != nil {
-			log.WithFields(logrus.Fields{
-				"err":      err.Error(),
-				"urlParam": mux.Vars(r)["requestIdEncoded"],
-			}).Error("Unable to decode requestID token")
-			http.Error(w, "Unable to decode token", http.StatusBadRequest)
+		request, errMsg, statusCode := svc.getRequestByEncryptedID(mux.Vars(r)["requestIdEncoded"])
+		if errMsg != "" {
+			http.Error(w, errMsg, statusCode)
 			return
 		}
 
-		_id, _ := primitive.ObjectIDFromHex(string(requestID))
-		requests, err := svc.dbService.GetRequests(1, bson.D{{"_id", _id}})
-		if err != nil {
-			http.Error(w, "Unable to get reqeuest by ID", http.StatusInternalServerError)
-			log.WithFields(logrus.Fields{
-				"err":       err.Error(),
-				"requestID": requestID,
-			}).Error("Unable to get reqeuest by ID")
-			return
-		}
 		w.Header().Set("Content-Type", "application/json")
-		if len(requests) == 0 {
-			http.Error(w, "Resource not found", http.StatusBadRequest)
-			return
-		}
-		request := requests[0]
 		// For external facing get request, only display non-sensitive necessary fields
 		msg := map[string]map[string]interface{}{"request": {
 			"username":  request.Username,
@@ -62,7 +69,7 @@ func (svc *Service) handleCreateRequest() http.HandlerFunc {
 		var newRequest types.WhitelistRequest
 		reqBody, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "Unable to read request body", http.StatusInternalServerError)
+			http.Error(w, "Unable to read request body", http.StatusBadRequest)
 			return
 		}
 		err = json.Unmarshal(reqBody, &newRequest)

@@ -32,7 +32,7 @@ func Send(templateName string, templateData interface{}, subject string, recipen
 		return err
 	}
 	content := "To: " + recipent + "\r\nSubject: " + subject + "\r\n" + mime + "\r\n" + body
-	SMTP := fmt.Sprintf("%s:%d", "smtp.mailgun.org", appConfig.SMTPPort)
+	SMTP := fmt.Sprintf("%s:%d", appConfig.SMTPServer, appConfig.SMTPPort)
 	err = smtp.SendMail(SMTP, smtp.PlainAuth("", appConfig.SMTPEmail, appConfig.SMTPPassword, appConfig.SMTPServer), appConfig.SMTPEmail, []string{recipent}, []byte(content))
 	return err
 }

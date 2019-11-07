@@ -7,7 +7,7 @@ import AuthService from '../service/AuthService';
 import Recaptcha from 'react-google-invisible-recaptcha';
 import RecaptchaService from '../service/RecaptchaService'
 
-const RECAPTCHA_SITEKEY = window.RECAPTCHA_SITEKEY ? window.RECAPTCHA_SITEKEY : "";
+const RECAPTCHA_SITEKEY = window.RECAPTCHA_SITEKEY ? window.RECAPTCHA_SITEKEY : process.env.REACT_APP_RECAPTCHA_SITEKEY;
 console.log(RECAPTCHA_SITEKEY)
 
 class Login extends React.Component {

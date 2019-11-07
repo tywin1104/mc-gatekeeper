@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_HOST = window.REACT_APP_API_HOST ? window.REACT_APP_API_HOST : "";
+const API_HOST = process.env.REACT_APP_API_HOST ? process.env.REACT_APP_API_HOST : "";
 
 class AuthService {
 
