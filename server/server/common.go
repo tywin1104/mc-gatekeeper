@@ -60,7 +60,7 @@ func (svc *Service) getRequestByEncryptedID(requestIDEncoded string) (*types.Whi
 		log.WithFields(logrus.Fields{
 			"err":      err.Error(),
 			"urlParam": requestIDEncoded,
-		}).Error("Unable to decode requestID token")
+		}).Warn("Unable to decode requestID token")
 		return nil, http.StatusBadRequest, errors.New("Unable to decode token")
 	}
 

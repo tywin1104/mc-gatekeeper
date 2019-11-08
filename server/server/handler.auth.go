@@ -23,6 +23,7 @@ type claims struct {
 
 var authMiddleware *jwtmiddleware.JWTMiddleware
 
+// HandleAdminSignin handle auth token generation
 func (svc *Service) HandleAdminSignin() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var creds credentials
@@ -71,7 +72,8 @@ func (svc *Service) HandleAdminSignin() http.HandlerFunc {
 	}
 }
 
-func (svc *Service) getAuthMiddleware() *jwtmiddleware.JWTMiddleware {
+// GetAuthMiddleware return the auth middleware which verifys jwt auth token
+func (svc *Service) GetAuthMiddleware() *jwtmiddleware.JWTMiddleware {
 	if authMiddleware == nil {
 		authMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
 			ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {

@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/tywin1104/mc-whitelist/utils"
 	"github.com/urfave/negroni"
 
 	"github.com/felixge/httpsnoop"
@@ -100,12 +99,12 @@ func (svc *Service) routes() {
 	// Endpoints for internal(admin) consumptiono only that are wrapped by auth middleware
 	internal := svc.router.PathPrefix("/api/v1/internal/requests").Subrouter()
 	internal.Handle("/", negroni.New(
-		negroni.HandlerFunc(svc.getAuthMiddleware().HandlerWithNext),
-		negroni.Wrap(svc.handleGetRequests()),
+		negroni.HandlerFunc(svc.GetAuthMiddleware().HandlerWithNext),
+		negroni.Wrap(svc.HandleGetRequests()),
 	)).Methods("GET")
 	internal.Handle("/{requestId}", negroni.New(
-		negroni.HandlerFunc(svc.getAuthMiddleware().HandlerWithNext),
-		negroni.Wrap(svc.handleInternalPatchRequestByID()),
+		negroni.HandlerFunc(svc.GetAuthMiddleware().HandlerWithNext),
+		negroni.Wrap(svc.HandleInternalPatchRequestByID()),
 	)).Methods("PATCH")
 
 	// Server health endpoint
@@ -113,44 +112,10 @@ func (svc *Service) routes() {
 	// Recaptcha verification endpoint
 	svc.router.HandleFunc("/api/v1/recaptcha/verify", svc.handleVerifyRecaptcha()).Methods("POST")
 	// Endpoint to verify validity of action email
-	svc.router.HandleFunc("/api/v1/verify/{requestIdEncoded}", svc.handleVerifyAdminToken()).Methods("GET").Queries("adm", "{adm}")
+	svc.router.HandleFunc("/api/v1/verify/{requestIdEncoded}", svc.HandleVerifyMatchingTokens()).Methods("GET").Queries("adm", "{adm}")
 }
 
-func (svc *Service) handleVerifyAdminToken() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Get admin info from ?adm=<EncodedAdminEmail>
-		keys, ok := r.URL.Query()["adm"]
-
-		if !ok || len(keys[0]) < 1 {
-			http.Error(w, "adm token is missing", http.StatusBadRequest)
-			return
-		}
-		admToken := keys[0]
-		admEmail, err := utils.DecodeAndDecrypt(admToken, svc.c.PassPhrase)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		valid := false
-		// Check if the the decrypted admin email is valid and assigned op for this current request
-		request, statusCode, err := svc.getRequestByEncryptedID(mux.Vars(r)["requestIdEncoded"])
-		if err != nil {
-			w.WriteHeader(statusCode)
-			return
-		}
-		for _, op := range request.Assignees {
-			if admEmail == op {
-				valid = true
-			}
-		}
-		if !valid {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-	}
-}
-
+//HandleHealthCheck signals the server is running
 func (svc *Service) HandleHealthCheck() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

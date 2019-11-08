@@ -13,6 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+// HandleGetRequestByID get one request by encoded id
 func (svc *Service) HandleGetRequestByID() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		request, statusCode, err := svc.getRequestByEncryptedID(mux.Vars(r)["requestIdEncoded"])
@@ -36,6 +37,7 @@ func (svc *Service) HandleGetRequestByID() http.HandlerFunc {
 	}
 }
 
+// HandleCreateRequest create new request
 func (svc *Service) HandleCreateRequest() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log := svc.logger
@@ -90,9 +92,9 @@ func (svc *Service) HandleCreateRequest() http.HandlerFunc {
 	}
 }
 
+// HandlePatchRequestByID update the request by encrypted id
 func (svc *Service) HandlePatchRequestByID() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log := svc.logger
 		// Get admin info from ?adm=<EncodedAdminEmail>
 		keys, ok := r.URL.Query()["adm"]
 
@@ -101,20 +103,10 @@ func (svc *Service) HandlePatchRequestByID() http.HandlerFunc {
 			return
 		}
 		admToken := keys[0]
-		opEmail, err := utils.DecodeAndDecrypt(admToken, svc.c.PassPhrase)
+		// Only proceed if two tokens are matching correctly
+		request, opEmail, err := svc.verifyMatchingTokens(mux.Vars(r)["requestIdEncoded"], admToken)
 		if err != nil {
-			log.WithFields(logrus.Fields{
-				"err":      err.Error(),
-				"urlParam": mux.Vars(r)["requestIdEncoded"],
-			}).Error("Unable to decode adm token")
-			http.Error(w, "Unable to decode token", http.StatusBadRequest)
-			return
-		}
-
-		// Get the request from encoded id url path field
-		request, statusCode, err := svc.getRequestByEncryptedID(mux.Vars(r)["requestIdEncoded"])
-		if err != nil {
-			http.Error(w, err.Error(), statusCode)
+			http.Error(w, "Tokens do not match", http.StatusBadRequest)
 			return
 		}
 		// Only update a request if its status is still pending
@@ -165,4 +157,52 @@ func (svc *Service) validateCreateRequest(newRequest *types.WhitelistRequest) (i
 		return http.StatusBadRequest, errors.New(message)
 	}
 	return http.StatusOK, nil
+}
+
+// HandleVerifyMatchingTokens verifys the correct matching pair between adm token and request ID token
+// Mainly used for client application to verify first before rending information that is only supposed to
+// be displayed to relevant admin. The update request logic will also double check the matching tokens
+func (svc *Service) HandleVerifyMatchingTokens() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Get admin info from ?adm=<EncodedAdminEmail>
+		keys, ok := r.URL.Query()["adm"]
+
+		if !ok || len(keys[0]) < 1 {
+			http.Error(w, "adm token is missing", http.StatusBadRequest)
+			return
+		}
+		admToken := keys[0]
+		_, _, err := svc.verifyMatchingTokens(mux.Vars(r)["requestIdEncoded"], admToken)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+// returns request object and corresponding op's email if tokens match
+// return err if either token is invalid or two tokens does not match by assignee relation
+func (svc *Service) verifyMatchingTokens(requestIDToken, admToken string) (*types.WhitelistRequest, string, error) {
+	log := svc.logger
+	opEmail, err := utils.DecodeAndDecrypt(admToken, svc.c.PassPhrase)
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"err": err.Error(),
+		}).Error("Unable to decode adm token")
+		return nil, "", err
+	}
+	request, _, err := svc.getRequestByEncryptedID(requestIDToken)
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"err": err.Error(),
+		}).Error("Unable to get request by enceyptedID")
+		return nil, "", err
+	}
+	for _, op := range request.Assignees {
+		if opEmail == op {
+			return request, opEmail, nil
+		}
+	}
+	return nil, "", errors.New("Tokens do not match")
 }

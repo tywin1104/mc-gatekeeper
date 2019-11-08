@@ -13,7 +13,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func (svc *Service) handleGetRequests() http.HandlerFunc {
+// HandleGetRequests handle get requests from authenticated admin user
+func (svc *Service) HandleGetRequests() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log := svc.logger
 		requests, err := svc.dbService.GetRequests(-1, bson.D{{}})
@@ -31,7 +32,8 @@ func (svc *Service) handleGetRequests() http.HandlerFunc {
 	}
 }
 
-func (svc *Service) handleInternalPatchRequestByID() http.HandlerFunc {
+// HandleInternalPatchRequestByID handle patch request from authenticated admin user
+func (svc *Service) HandleInternalPatchRequestByID() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestID := mux.Vars(r)["requestId"]
 		_id, _ := primitive.ObjectIDFromHex(requestID)
