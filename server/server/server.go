@@ -89,17 +89,13 @@ func waitForHTTPServer(wg *sync.WaitGroup, port, endpoint string, log *logrus.En
 func (svc *Service) routes() {
 	// Endpoints that are public accessible
 	external := svc.router.PathPrefix("/api/v1/requests").Subrouter()
-	external.HandleFunc("/", svc.handleCreateRequest()).Methods("POST")
-	external.HandleFunc("/{requestIdEncoded}", svc.handleGetRequestByID()).Methods("GET")
-	external.HandleFunc("/{requestIdEncoded}", svc.handlePatchRequestByID()).Methods("PATCH").Queries("adm", "{adm}")
-
-	// Endpoint to verify validity of op token for frontend to consume
-	r := svc.router.PathPrefix("/api/v1/verify/{requestIdEncoded}").Subrouter()
-	r.HandleFunc("/", svc.handleVerifyAdminToken()).Methods("GET").Queries("adm", "{adm}")
+	external.HandleFunc("/", svc.HandleCreateRequest()).Methods("POST")
+	external.HandleFunc("/{requestIdEncoded}", svc.HandleGetRequestByID()).Methods("GET")
+	external.HandleFunc("/{requestIdEncoded}", svc.HandlePatchRequestByID()).Methods("PATCH").Queries("adm", "{adm}")
 
 	// Endpoint to authenticate admin user
 	auth := svc.router.PathPrefix("/api/v1/auth").Subrouter()
-	auth.HandleFunc("/", svc.handleAdminSignin()).Methods("POST")
+	auth.HandleFunc("/", svc.HandleAdminSignin()).Methods("POST")
 
 	// Endpoints for internal(admin) consumptiono only that are wrapped by auth middleware
 	internal := svc.router.PathPrefix("/api/v1/internal/requests").Subrouter()
@@ -111,15 +107,13 @@ func (svc *Service) routes() {
 		negroni.HandlerFunc(svc.getAuthMiddleware().HandlerWithNext),
 		negroni.Wrap(svc.handleInternalPatchRequestByID()),
 	)).Methods("PATCH")
-	internal.Handle("/{requestId}", negroni.New(
-		negroni.HandlerFunc(svc.getAuthMiddleware().HandlerWithNext),
-		negroni.Wrap(svc.handleDeleteRequestByID()),
-	)).Methods("DELETE")
 
 	// Server health endpoint
-	svc.router.HandleFunc("/health", svc.handleHealthCheck()).Methods("GET")
+	svc.router.HandleFunc("/health", svc.HandleHealthCheck()).Methods("GET")
 	// Recaptcha verification endpoint
 	svc.router.HandleFunc("/api/v1/recaptcha/verify", svc.handleVerifyRecaptcha()).Methods("POST")
+	// Endpoint to verify validity of action email
+	svc.router.HandleFunc("/api/v1/verify/{requestIdEncoded}", svc.handleVerifyAdminToken()).Methods("GET").Queries("adm", "{adm}")
 }
 
 func (svc *Service) handleVerifyAdminToken() http.HandlerFunc {
@@ -139,8 +133,8 @@ func (svc *Service) handleVerifyAdminToken() http.HandlerFunc {
 		}
 		valid := false
 		// Check if the the decrypted admin email is valid and assigned op for this current request
-		request, _, statusCode := svc.getRequestByEncryptedID(mux.Vars(r)["requestIdEncoded"])
-		if statusCode != http.StatusOK {
+		request, statusCode, err := svc.getRequestByEncryptedID(mux.Vars(r)["requestIdEncoded"])
+		if err != nil {
 			w.WriteHeader(statusCode)
 			return
 		}
@@ -157,7 +151,7 @@ func (svc *Service) handleVerifyAdminToken() http.HandlerFunc {
 	}
 }
 
-func (svc *Service) handleHealthCheck() http.HandlerFunc {
+func (svc *Service) HandleHealthCheck() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}

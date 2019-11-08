@@ -23,7 +23,7 @@ type claims struct {
 
 var authMiddleware *jwtmiddleware.JWTMiddleware
 
-func (svc *Service) handleAdminSignin() http.HandlerFunc {
+func (svc *Service) HandleAdminSignin() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var creds credentials
 		err := json.NewDecoder(r.Body).Decode(&creds)

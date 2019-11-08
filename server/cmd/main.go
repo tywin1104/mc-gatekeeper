@@ -38,14 +38,18 @@ func main() {
 	if err != nil {
 		log.Fatal("Unable to connect to mongodb: " + err.Error())
 	}
-	log.Info("Mongodb connection established")
+	log.WithFields(logrus.Fields{
+		"addr": config.MongodbConnStr,
+	}).Info("Mongodb connection established")
 
 	dbSvc := db.NewService(client)
 	conn, err := amqp.Dial(config.RabbitmqConnStr)
 	if err != nil {
 		log.Fatal("Unable to connect to rabbitmq: " + err.Error())
 	}
-	log.Info("RabbitMQ connection established")
+	log.WithFields(logrus.Fields{
+		"addr": config.RabbitmqConnStr,
+	}).Info("RabbitMQ connection established")
 
 	defer conn.Close()
 	broker, err := broker.NewService(conn, config.TaskQueueName)

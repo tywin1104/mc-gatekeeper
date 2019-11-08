@@ -76,16 +76,6 @@ func (s *Service) GetRequests(limit int64, filter interface{}) ([]*types.Whiteli
 	return requests, nil
 }
 
-// DeleteRequest delete specified whitelistRequest in db
-func (s *Service) DeleteRequest(filter interface{}) (int64, error) {
-	collection := s.db.Database("mc-whitelist").Collection("requests")
-	deleteResult, err := collection.DeleteMany(context.TODO(), filter)
-	if err != nil {
-		return 0, err
-	}
-	return deleteResult.DeletedCount, nil
-}
-
 // UpdateRequest perform partial update to the specified whitelistRequest in db
 func (s *Service) UpdateRequest(filter, update interface{}) (bson.M, error) {
 	collection := s.db.Database("mc-whitelist").Collection("requests")

@@ -31,7 +31,13 @@ type Config struct {
 // LoadConfig loads config file
 func LoadConfig() (*Config, error) {
 	var appConfig *Config
-	file, err := os.Open("config.yaml")
+	var configFileName string
+	if test := os.Getenv("test"); test != "" {
+		configFileName = "../config_test.yaml"
+	} else {
+		configFileName = "config.yaml"
+	}
+	file, err := os.Open(configFileName)
 	if err != nil {
 		return nil, err
 	}
