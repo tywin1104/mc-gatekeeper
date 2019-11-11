@@ -32,7 +32,7 @@ type Config struct {
 func LoadConfig() (*Config, error) {
 	var appConfig *Config
 	var configFileName string
-	if test := os.Getenv("test"); test != "" {
+	if stage := os.Getenv("stage"); stage == "test" {
 		configFileName = "../config_test.yaml"
 	} else {
 		configFileName = "config.yaml"

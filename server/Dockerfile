@@ -1,5 +1,6 @@
 FROM golang:1.12.0 AS builder
 
+LABEL maintainer="tiaven1104@gmail.com"
 RUN mkdir /server
 ADD . /server
 
