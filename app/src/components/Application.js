@@ -15,7 +15,7 @@ class Application extends React.Component {
     this.state = {
       email : '',
       username: '',
-      gender: '',
+      gender: 'male',
       age: '',
       applicationText: '',
       errorMsg: '',
@@ -90,7 +90,7 @@ render() {
                 <i className="ni ni-like-2" />
             </span>{" "}
             <span className="alert-inner--text">
-                <strong>Success</strong> Your application is on the way.. Check the email for confirmation.
+                <strong>Success</strong> Your application is on the way.. Check your email for confirmation.
             </span>
             </UncontrolledAlert>
         )
@@ -116,7 +116,7 @@ render() {
       </FormGroup>
       <FormGroup>
         <Label>Gender</Label>
-        <Input type="select" name="gender" value={this.state.gender}  onChange={this.handleInputChange}>
+        <Input type="select" name="gender" required value={this.state.gender}  onChange={this.handleInputChange}>
           <option>male</option>
           <option>female</option>
           <option>Other</option>
@@ -128,7 +128,7 @@ render() {
       </FormGroup>
       <FormGroup>
         <Label>Application</Label>
-        <Input type="textarea"  rows='8' cols='60' required name="applicationText" placeholder="tell us about your experience with minecraft and minecraft servers" value={this.state.applicationText}  onChange={this.handleInputChange}/>
+        <Input type="textarea"  rows='8' cols='60' minlength="100" required name="applicationText" placeholder="tell us about your experience with minecraft and minecraft servers" value={this.state.applicationText}  onChange={this.handleInputChange}/>
       </FormGroup>
       <FormGroup check>
         <Label check>

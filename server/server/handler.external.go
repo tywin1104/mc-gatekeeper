@@ -31,6 +31,8 @@ func (svc *Service) HandleGetRequestByID() http.HandlerFunc {
 			"timestamp": request.Timestamp,
 			"info":      request.Info,
 			"age":       request.Age,
+			"_id":       request.ID.Hex(),
+			"gender":    request.Gender,
 		}}
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(msg)

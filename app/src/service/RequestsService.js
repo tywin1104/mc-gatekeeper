@@ -31,17 +31,19 @@ class RequestsService {
         return axios.get(`${API_HOST}/api/v1/requests/${encodedID}`)
     }
 
-    approveRequest(requestID, admToken) {
+    approveRequest(requestID, admToken, note) {
         return axios.patch(`${API_HOST}/api/v1/requests/${requestID}?adm=${admToken}`, {
             status: "Approved",
             processedTimestamp: new Date(),
+            note: note,
         })
     }
 
-    denyRequest(requestID, admToken) {
+    denyRequest(requestID, admToken, note) {
         return axios.patch(`${API_HOST}/api/v1/requests/${requestID}?adm=${admToken}`, {
             status: "Denied",
             processedTimestamp: new Date(),
+            note: note,
         })
     }
 

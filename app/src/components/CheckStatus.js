@@ -30,6 +30,17 @@ class CheckStatus extends React.Component {
 
   }
 
+  getButtonColor(status)  {
+      switch(status) {
+          case "Approved":
+              return "success"
+          case "Denied":
+              return "danger"
+          default:
+              return "info"
+      }
+  }
+
   render() {
       let display
       let currentRequest = this.state.currentRequest
@@ -38,15 +49,19 @@ class CheckStatus extends React.Component {
         <Container>
         <ListGroup>
             <ListGroupItem active tag="a" href="#" action>Your Application Status</ListGroupItem>
-            <ListGroupItem tag="a" action><strong>Minecraft Username  </strong> {currentRequest.username}</ListGroupItem>
+            <ListGroupItem tag="a" action><strong>Username  </strong> {currentRequest.username}</ListGroupItem>
             <ListGroupItem tag="a"  action><strong>Email  </strong> {currentRequest.email}</ListGroupItem>
             <ListGroupItem tag="a" action>
                 <strong>Status  </strong>
                 <Button
-                    color="info" type="button">{currentRequest.status}
+                    color={this.getButtonColor(currentRequest.status)} type="button">{currentRequest.status}
                 </Button>
             </ListGroupItem>
-            <ListGroupItem disabled tag="a" href="#" action>Application submitted { moment.parseZone(currentRequest.timestamp).local().fromNow()}</ListGroupItem>
+            <ListGroupItem tag="a"  action><strong>Reference ID  </strong> {currentRequest._id}</ListGroupItem>
+            <ListGroupItem disabled tag="a" href="#" action>
+                <p>Application submitted { moment.parseZone(currentRequest.timestamp).local().fromNow()}</p>
+                <p>If you haven't heard from us within 24 hours, please contact us with your application ID above for reference</p>
+            </ListGroupItem>
         </ListGroup>
         </Container>
         )

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,7 +40,7 @@ func main() {
 		log.Fatal("Unable to connect to mongodb: " + err.Error())
 	}
 	log.WithFields(logrus.Fields{
-		"addr": config.MongodbConnStr,
+		"addr": strings.Split(config.MongodbConnStr, "@")[1],
 	}).Info("Mongodb connection established")
 
 	dbSvc := db.NewService(client)
@@ -48,7 +49,7 @@ func main() {
 		log.Fatal("Unable to connect to rabbitmq: " + err.Error())
 	}
 	log.WithFields(logrus.Fields{
-		"addr": config.RabbitmqConnStr,
+		"addr": strings.Split(config.RabbitmqConnStr, "@")[1],
 	}).Info("RabbitMQ connection established")
 
 	defer conn.Close()

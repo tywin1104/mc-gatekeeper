@@ -33,7 +33,7 @@ export default function Chart(props) {
 
   return (
     <React.Fragment>
-      <Title>New Requests Count</Title>
+      <Title>New Applications</Title>
       <ResponsiveContainer>
         <LineChart
           data={data}
@@ -47,7 +47,7 @@ export default function Chart(props) {
           <XAxis dataKey="time" />
           <YAxis>
             <Label angle={270} position="left" style={{ textAnchor: 'middle' }}>
-              Requests
+              Count
             </Label>
           </YAxis>
           <Line type="monotone" dataKey="amount" stroke="#556CD6" dot={false} />

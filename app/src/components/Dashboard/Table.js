@@ -17,7 +17,7 @@ class Table extends React.Component {
     RequestsService.approveRequestAdmin(requestID, this.props.config)
     .then(res => {
       if (res.status === 200) {
-          window.location.reload();
+        this.props.handleChangeRequestStatus(requestID, "Approved")
       }})
     .catch(error => {
        alert("Internal server error")
@@ -30,16 +30,15 @@ class Table extends React.Component {
     RequestsService.denyRequestAdmin(requestID, this.props.config)
     .then(res => {
       if (res.status === 200) {
-        window.location.reload();
+        this.props.handleChangeRequestStatus(requestID, "Denied")
       }})
     .catch(error => {
        alert("Internal server error")
     });
   }
 
-
   render() {
-    if(!this.props || this.props.requests.length === 0 || this.props.config == null) {
+    if(!this.props || this.props.config == null) {
       return <div>Loading...</div>
     }
     // Create a clone of props so that modifications here will not bubbled up
@@ -60,12 +59,14 @@ class Table extends React.Component {
       <MaterialTable
         title="All Requests"
         columns={[
+          { title: 'ID', field: '_id' },
           { title: 'Username', field: 'username' },
           { title: 'Email', field: 'email' },
           { title: 'Application Submitted', field: 'timestamp', },
           { title: 'Status', field: 'status',},
           { title: 'Processed', field: 'processedTimestamp',},
           { title: 'Admin', field: 'admin',},
+          { title: 'Assignees', field: 'assignees',},
         ]}
         data = {requests}
         detailPanel={rowData => {
@@ -89,6 +90,12 @@ class Table extends React.Component {
                   <DraftsIcon />
                 </ListItemIcon>
                 <ListItemText primary={rowData.info.applicationText}/>
+              </ListItem>
+              <ListItem button>
+                <ListItemIcon>
+                  <DraftsIcon />
+                </ListItemIcon>
+                <ListItemText primary={rowData.note}/>
               </ListItem>
             </List>
             </div>

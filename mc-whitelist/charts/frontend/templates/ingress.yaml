@@ -3,8 +3,8 @@ kind: Ingress
 metadata:
   name: ingress-mc-whitelist
   annotations:
-    kubernetes.io/ingress.global-static-ip-name: {{ .Values.ingress.static_ip }}
-    networking.gke.io/managed-certificates:  {{ .Values.ingress.certificate }}
+    # kubernetes.io/ingress.global-static-ip-name: {{ .Values.ingress.static_ip }}
+    # networking.gke.io/managed-certificates:  {{ .Values.ingress.certificate }}
 spec:
   backend:
     serviceName: service-mc-whitelist-{{ .Chart.Name }}

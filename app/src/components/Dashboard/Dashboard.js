@@ -137,11 +137,7 @@ class Dashboard extends React.Component {
           })
       }})
     .catch(error => {
-      if (error.response) {
-          if(error.response.status === 401) {
-              alert("Log in is required")
-          }
-      }
+      // direct unauthenticated to login
       this.props.history.push('/login')
       return
     });
@@ -157,6 +153,16 @@ class Dashboard extends React.Component {
       open: false
     })
   };
+
+  handleChangeRequestStatus = (requestID, newStatus) => {
+    let requests = this.state.requests
+    requests.forEach((request)=> {
+      if(request._id === requestID) {
+          request.status = newStatus
+      }
+    })
+    this.setState({requests})
+  }
 
   render() {
     if(this.state.requests.length === 0) {
@@ -223,7 +229,10 @@ class Dashboard extends React.Component {
             {/* Whitelist request table-view */}
             <Grid item xs={12}>
               <Paper className={classes.paper}>
-                <Table requests={this.state.requests} config={this.state.auth_header}/>
+                <Table
+                    requests={this.state.requests} config={this.state.auth_header}
+                    handleChangeRequestStatus={(requestID) => this.handleChangeRequestStatus(requestID)}
+                />
               </Paper>
             </Grid>
           </Grid>

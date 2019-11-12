@@ -55,7 +55,7 @@ func (svc *Service) Listen(port string, wg *sync.WaitGroup) {
 		m := httpsnoop.CaptureMetrics(handler, w, r)
 		// Skip logging health checks as they are constantly called by kubernetes probes
 		if r.URL.String() != "/health" {
-			svc.logger.Infof("%s %s (code=%d dt=%s)",
+			svc.logger.Debugf("%s %s (code=%d dt=%s)",
 				r.Method,
 				r.URL,
 				m.Code,

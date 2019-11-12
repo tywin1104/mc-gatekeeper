@@ -1,8 +1,8 @@
 import React from "react";
-import { ListGroup, ListGroupItem, Container, Button, Jumbotron, Alert } from 'reactstrap';
+import { ListGroup, ListGroupItem, Container, Button, Jumbotron, Alert, Form, FormGroup, Label, Input } from 'reactstrap';
 import moment from 'moment'
 import RequestsService from '../service/RequestsService'
-import './CheckStatus.css';
+import './AdminAction.css';
 
 class AdminAction extends React.Component {
   constructor(props) {
@@ -10,7 +10,8 @@ class AdminAction extends React.Component {
     this.state = {
         currentRequest: {},
         invalid: false,
-        adminToken: ""
+        adminToken: "",
+        note: "",
     };
   }
   componentDidMount() {
@@ -55,10 +56,24 @@ class AdminAction extends React.Component {
 
   }
 
-  onApprove = (event) => {
+  handleInputChange = (event) => {
+    const { value, name } = event.target;
+    this.setState({
+      [name] : value
+    });
+  }
+
+  onDecision = (event, newStatus) => {
     event.preventDefault();
     const { match: { params } } = this.props;
-    RequestsService.approveRequest(params.id, this.state.adminToken)
+    let note = this.state.note
+    let promise
+    if (newStatus === "Denied") {
+        promise = RequestsService.denyRequest(params.id, this.state.adminToken, note)
+    }else {
+        promise = RequestsService.approveRequest(params.id, this.state.adminToken, note)
+    }
+    promise
     .then(res => {
       if (res.status === 200) {
           alert("Completed! Thank you!")
@@ -75,25 +90,6 @@ class AdminAction extends React.Component {
     });
   }
 
-onDeny = (event) => {
-    event.preventDefault();
-    const { match: { params } } = this.props;
-    RequestsService.denyRequest(params.id, this.state.adminToken)
-    .then(res => {
-      if (res.status === 200) {
-          alert("Completed! Thank you!")
-          window.location.reload();
-      }})
-    .catch(error => {
-        if (error.response) {
-            if(error.response.status === 400) {
-                alert("Invalid token. Please do not modify the original link sent to you via email")
-            }else {
-                alert("Unable to perform action due to internal server error")
-            }
-        }
-    });
-  }
   render() {
       let display
       let currentRequest = this.state.currentRequest
@@ -101,23 +97,34 @@ onDeny = (event) => {
           display = (
         <Container>
         <ListGroup>
-            <ListGroupItem active  action>Request Infomation</ListGroupItem>
-            {/* <ListGroupItem  action><strong>Minecraft Username</strong> ******</ListGroupItem> */}
+            <ListGroupItem active  action>Request Summary</ListGroupItem>
             <ListGroupItem  action><strong>Gender</strong> {currentRequest.gender}</ListGroupItem>
             <ListGroupItem  action><strong>Age</strong> {currentRequest.age}</ListGroupItem>
-            <ListGroupItem  action>{currentRequest.info.applicationText}</ListGroupItem>
+            <ListGroupItem  action>
+                <strong>Application Text</strong>
+                <Jumbotron>
+                    <p>{currentRequest.info.applicationText}</p>
+                </Jumbotron>
+            </ListGroupItem>
             <ListGroupItem disabled  action>Application submitted { moment.parseZone(currentRequest.timestamp).local().fromNow()}</ListGroupItem>
         </ListGroup>
-        <Button onClick={this.onApprove} color="success" outline  size="lg" type="button">
+        <Form>
+            <FormGroup>
+            <Input type="textarea" name="note" placeholder="Add note here (Optional)" value={this.state.note}  onChange={this.handleInputChange} />
+            </FormGroup>
+        </Form>
+        <Button className="actionButton"
+            onClick={(e) => this.onDecision(e, "Approved")}  color="success" outline  size="lg" type="button">
             Approve
         </Button>
-        <Button onClick={this.onDeny} color="danger" outline  size="lg" type="button">
+        <Button className="actionButton"
+            onClick={(e) => this.onDecision(e, "Denied")} color="danger" outline  size="lg" type="button">
             Deny
         </Button>
 
         <Jumbotron fluid>
             <Container fluid>
-            <h3>Creterias for whitelist approval</h3>
+            <h3>Notes to ops:</h3>
             <p className="lead">
             orem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
             </p>
@@ -146,6 +153,8 @@ onDeny = (event) => {
       )
   }
 }
+
+
 
 
  export default AdminAction;

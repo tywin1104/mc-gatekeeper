@@ -20,7 +20,7 @@ tags:
   description: Internal endpoints that are only exposed to admin user through the client application. JWT auth token required.
 - name: utils
   description: Some useful utility endpoints
-
+  
 paths:
   /requests/:
     post:
@@ -99,7 +99,7 @@ paths:
           schema:
             $ref: '#/definitions/UpdateRequestByIdExternalResponse'
         400:
-          description: Invalid ID or admin token supplied
+          description: Request ID token and adm token do not match OR the request is already fulfilled
         500:
           description: Internal server error
   /internal/requests/:
@@ -120,6 +120,8 @@ paths:
             $ref: '#/definitions/GetAllRequestsResponse'
         500:
           description: Internal server error
+        401:
+          description: Required authorization token not found or token is invalid
   /internal/requests/{RequestID}:
     patch:
       tags:
@@ -147,9 +149,11 @@ paths:
           schema:
             $ref: '#/definitions/UpdateRequestByIdExternalResponse'
         400:
-          description: Invalid ID or closed request
+          description: Invalid ID or already fulfilled request
         500:
           description: Internal server error
+        401:
+          description: Required authorization token not found or token is invalid
   /auth/:
     post:
       tags:
@@ -196,7 +200,7 @@ paths:
         description: encrypted and url-encoded request ID that are provided by the server found inside the email 
         required: true
         type: string
-
+      
       responses:
         200:
           description: Valid admin token
@@ -226,7 +230,7 @@ paths:
           description: Verification complete. Need to check the success field for validity of given token 
           schema:
             $ref: '#/definitions/VerifyRecapchaResponse'
-
+      
 securityDefinitions:
   Bearer:
     type: apiKey
@@ -259,6 +263,20 @@ definitions:
       username:
         type: string
         example: username1
+      age:
+        type: integer
+        format: int32
+        example: 19
+      gender:
+        type: string
+        enum:
+        - male
+        - female
+        - Other
+      _id:
+        type: string
+        example: "219dy219iudhwqyudguwkdh27"
+        
 
   CreateRequest:
     type: object
@@ -286,11 +304,11 @@ definitions:
         enum:
         - male
         - female
-        - others
+        - other
         example: female
   Info:
     type: object
-    required:
+    required: 
     - applicationText
     properties:
       applicationText:
@@ -408,7 +426,7 @@ definitions:
         type: array
         items:
           type: string
-          example:
+          example: 
            - "invalid-input-response"
 # Added by API Auto Mocking Plugin
 host: virtserver.swaggerhub.com
