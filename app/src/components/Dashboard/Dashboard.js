@@ -1,6 +1,7 @@
 import React from 'react';
 import clsx from 'clsx';
 import { withStyles } from "@material-ui/core/styles";
+import { Redirect } from 'react-router-dom'
 import CssBaseline from '@material-ui/core/CssBaseline';
 import Drawer from '@material-ui/core/Drawer';
 import AppBar from '@material-ui/core/AppBar';
@@ -116,8 +117,8 @@ class Dashboard extends React.Component {
   componentDidMount() {
     // Check localstorage for token, if null or invalid, redirects to login page
     let token = JSON.parse(localStorage.getItem("token"));
-    if(token == null) {
-      this.props.history.push('/login')
+    if(!token) {
+      this.props.history.push("/login")
       return
     }
 
@@ -138,11 +139,13 @@ class Dashboard extends React.Component {
       }})
     .catch(error => {
       // direct unauthenticated to login
-      this.props.history.push('/login')
+      // In the case that localstorage has expired / invalid token, clear that up
+      localStorage.clear();
+      this.props.history.push("/login")
       return
     });
-
   }
+
   handleDrawerOpen = () => {
     this.setState({
       open: true
@@ -165,7 +168,7 @@ class Dashboard extends React.Component {
   }
 
   render() {
-    if(this.state.requests.length === 0) {
+    if(!this.state.requests) {
       return <div>Loading...</div>
     }
     let pendingRequests = this.state.requests.filter(request => {

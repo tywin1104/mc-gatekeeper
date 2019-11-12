@@ -6,6 +6,7 @@ import Container from '@material-ui/core/Container';
 import AuthService from '../service/AuthService';
 import Recaptcha from 'react-google-invisible-recaptcha';
 import RecaptchaService from '../service/RecaptchaService'
+import { Redirect } from 'react-router-dom'
 
 const RECAPTCHA_SITEKEY = window.RECAPTCHA_SITEKEY ? window.RECAPTCHA_SITEKEY : process.env.REACT_APP_RECAPTCHA_SITEKEY;
 console.log(RECAPTCHA_SITEKEY)
@@ -22,11 +23,15 @@ class Login extends React.Component {
         this.onResolved = this.onResolved.bind( this );
     }
 
-    componentDidMount() {
-        localStorage.clear();
+    renderRedirect = () => {
+        // If token exists, try go to dashboard with the token
+        // Dashboard component will verify the token.
+        // If invalid, token will be deleted and login is enforced
+        let token = JSON.parse(localStorage.getItem("token"));
+        if(token) {
+            return <Redirect to='/dashboard' />
+        }
     }
-
-
 
     login = (e) => {
         e.preventDefault();
@@ -66,6 +71,8 @@ class Login extends React.Component {
 
     render() {
         return(
+            <div>
+                {this.renderRedirect()}
             <React.Fragment>
                 <Container maxWidth="sm">
                     <Typography variant="h4" style={styles.center}>Login</Typography>
@@ -83,6 +90,7 @@ class Login extends React.Component {
                     onResolved={ this.onResolved } />
                 </Container>
             </React.Fragment>
+            </div>
         )
     }
 }
