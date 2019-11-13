@@ -1,7 +1,6 @@
 import React from 'react';
 import clsx from 'clsx';
 import { withStyles } from "@material-ui/core/styles";
-import { Redirect } from 'react-router-dom'
 import CssBaseline from '@material-ui/core/CssBaseline';
 import Drawer from '@material-ui/core/Drawer';
 import AppBar from '@material-ui/core/AppBar';
@@ -177,6 +176,10 @@ class Dashboard extends React.Component {
     let fulfilledRequests = this.state.requests.filter(request => {
       return request.status === "Approved" || request.status === "Denied"
     })
+    let approvedRequests = this.state.requests.filter(request => {
+      return request.status === "Approved"
+    })
+    let statsSource = {pendingRequests, fulfilledRequests, approvedRequests}
     const { classes } = this.props
     const fixedHeightPaper = clsx(classes.paper, classes.fixedHeight);
     return (
@@ -226,7 +229,7 @@ class Dashboard extends React.Component {
             {/* Stats */}
             <Grid item xs={12} md={4} lg={3}>
               <Paper className={fixedHeightPaper}>
-                <Stats pending={pendingRequests.length} fulfilled={fulfilledRequests.length} />
+                <Stats data={statsSource} />
               </Paper>
             </Grid>
             {/* Whitelist request table-view */}

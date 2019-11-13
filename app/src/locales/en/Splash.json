@@ -1,0 +1,10 @@
+{
+    "Welcome": "Please kindly fill in the form for request to join our server. Our server admin will handle the applications within 24 hours. See you there!",
+    "Email": "Email",
+    "Username": "Username",
+    "Gender": "Gender",
+    "Age": "Age",
+    "ApplicationText": "ApplicationText",
+    "ApplicationTextPlaceholder": "tell us about your experience with minecraft and minecraft servers",
+    "RadioboxDescription": "I've read the <a href=\"#\">server rules</a> and I agree to submit my application to join"
+}

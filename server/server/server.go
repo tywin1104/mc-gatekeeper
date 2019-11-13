@@ -62,7 +62,6 @@ func (svc *Service) Listen(port string, wg *sync.WaitGroup) {
 				m.Duration,
 			)
 		}
-
 	})
 	endpoint := "health"
 	go waitForHTTPServer(wg, port[1:], endpoint, svc.logger)

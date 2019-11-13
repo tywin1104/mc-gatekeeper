@@ -1,5 +1,5 @@
 import React from "react";
-import { ListGroup, ListGroupItem, Container, Button, Jumbotron, Alert, Form, FormGroup, Label, Input } from 'reactstrap';
+import { ListGroup, ListGroupItem, Container, Button, Jumbotron, Alert, Form, FormGroup, Input } from 'reactstrap';
 import moment from 'moment'
 import RequestsService from '../service/RequestsService'
 import './AdminAction.css';

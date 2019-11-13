@@ -4,9 +4,10 @@ import List from '@material-ui/core/List';
 import ListItem from '@material-ui/core/ListItem';
 import ListItemIcon from '@material-ui/core/ListItemIcon';
 import ListItemText from '@material-ui/core/ListItemText';
-import DraftsIcon from '@material-ui/icons/Drafts';
+import NotesIcon from '@material-ui/icons/Notes';
 import WcIcon from '@material-ui/icons/Wc';
 import FaceIcon from '@material-ui/icons/Face';
+import CommentIcon from '@material-ui/icons/Comment';
 import moment from 'moment'
 import RequestsService from '../../service/RequestsService';
 
@@ -87,13 +88,14 @@ class Table extends React.Component {
               </ListItem>
               <ListItem button>
                 <ListItemIcon>
-                  <DraftsIcon />
+                  <NotesIcon />
                 </ListItemIcon>
                 <ListItemText primary={rowData.info.applicationText}/>
               </ListItem>
-              <ListItem button>
+              {/* Hide note section if the data does not contain it */}
+              <ListItem button style={{display: rowData.note ? '' : 'none' }}>
                 <ListItemIcon>
-                  <DraftsIcon />
+                  <CommentIcon />
                 </ListItemIcon>
                 <ListItemText primary={rowData.note}/>
               </ListItem>

@@ -11,7 +11,12 @@ import AdminAction from './components/AdminAction'
 import Dashboard from './components/Dashboard/Dashboard'
 import Login from './components/Login'
 
+
 class App extends React.Component  {
+  constructor(props:any){
+    super(props);
+  }
+
   render() {
     return (
       <Router>
