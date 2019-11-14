@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"github.com/streadway/amqp"
-	"github.com/tywin1104/mc-whitelist/config"
 	"github.com/tywin1104/mc-whitelist/db"
 	"github.com/tywin1104/mc-whitelist/mailer"
 	"github.com/tywin1104/mc-whitelist/types"
@@ -22,15 +22,13 @@ import (
 // Worker defines message queue worker
 type Worker struct {
 	dbService *db.Service
-	c         *config.Config
 	logger    *logrus.Entry
 }
 
 // NewWorker creates a worker to constantly listen and handle messages in the queue
-func NewWorker(db *db.Service, c *config.Config, logger *logrus.Entry) *Worker {
+func NewWorker(db *db.Service, logger *logrus.Entry) *Worker {
 	return &Worker{
 		dbService: db,
-		c:         c,
 		logger:    logger,
 	}
 }
@@ -46,10 +44,8 @@ func (worker *Worker) failOnError(err error, msg string) {
 // Start the worker to process the messages pushed into the queue
 func (worker *Worker) Start(wg *sync.WaitGroup) {
 	log := worker.logger
-	config, err := config.LoadConfig()
-	worker.failOnError(err, "Failed to load config")
 
-	conn, err := amqp.Dial(config.RabbitmqConnStr)
+	conn, err := amqp.Dial(viper.GetString("rabbitMQConn"))
 	worker.failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
 
@@ -64,12 +60,12 @@ func (worker *Worker) Start(wg *sync.WaitGroup) {
 	args["x-message-ttl"] = int32(8.64e+7)
 
 	q, err := ch.QueueDeclare(
-		config.TaskQueueName, // name
-		true,                 // durable
-		false,                // delete when unused
-		false,                // exclusive
-		false,                // no-wait
-		args,                 // arguments
+		viper.GetString("taskQueueName"), // name
+		true,                             // durable
+		false,                            // delete when unused
+		false,                            // exclusive
+		false,                            // no-wait
+		args,                             // arguments
 	)
 	worker.failOnError(err, "Failed to declare a queue")
 
@@ -184,7 +180,7 @@ func (worker *Worker) processNewRequest(d amqp.Delivery, request types.Whitelist
 
 func (worker *Worker) emailDecision(whitelistRequest types.WhitelistRequest) error {
 	log := worker.logger
-	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), worker.c.PassPhrase)
+	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), viper.GetString("passphrase"))
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"err": err,
@@ -200,7 +196,7 @@ func (worker *Worker) emailDecision(whitelistRequest types.WhitelistRequest) err
 		subject = "Update regarding your request to join the server"
 		template = "./mailer/templates/deny.html"
 	}
-	err = mailer.Send(template, map[string]string{"link": requestIDToken}, subject, whitelistRequest.Email, worker.c)
+	err = mailer.Send(template, map[string]string{"link": requestIDToken}, subject, whitelistRequest.Email)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"recipent": whitelistRequest.Email,
@@ -218,7 +214,7 @@ func (worker *Worker) emailDecision(whitelistRequest types.WhitelistRequest) err
 func (worker *Worker) emailConfirmation(whitelistRequest types.WhitelistRequest) error {
 	log := worker.logger
 	subject := "Your request to join the server has been received"
-	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), worker.c.PassPhrase)
+	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), viper.GetString("passphrase"))
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"err": err,
@@ -226,7 +222,7 @@ func (worker *Worker) emailConfirmation(whitelistRequest types.WhitelistRequest)
 		return err
 	}
 	confirmationLink := os.Getenv("FRONTEND_DEPLOYED_URL") + "status/" + requestIDToken
-	err = mailer.Send("./mailer/templates/confirmation.html", map[string]string{"link": confirmationLink}, subject, whitelistRequest.Email, worker.c)
+	err = mailer.Send("./mailer/templates/confirmation.html", map[string]string{"link": confirmationLink}, subject, whitelistRequest.Email)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"recipent": whitelistRequest.Email,
@@ -245,7 +241,7 @@ func (worker *Worker) emailToOps(whitelistRequest types.WhitelistRequest, quoram
 	log := worker.logger
 	subject := "[Action Required] Whitelist request from " + whitelistRequest.Username
 	successCount := 0
-	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), worker.c.PassPhrase)
+	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), viper.GetString("passphrase"))
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"err": err,
@@ -258,7 +254,7 @@ func (worker *Worker) emailToOps(whitelistRequest types.WhitelistRequest, quoram
 	// Get target ops to send action emails according to the configured dispatching strategy
 	ops := worker.getTargetOps()
 	for _, op := range ops {
-		opEmailToken, err := utils.EncodeAndEncrypt(op, worker.c.PassPhrase)
+		opEmailToken, err := utils.EncodeAndEncrypt(op, viper.GetString("passphrase"))
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				"err": err,
@@ -266,7 +262,7 @@ func (worker *Worker) emailToOps(whitelistRequest types.WhitelistRequest, quoram
 			return 0, err
 		}
 		opLink := os.Getenv("FRONTEND_DEPLOYED_URL") + "action/" + requestIDToken + "?adm=" + opEmailToken
-		err = mailer.Send("./mailer/templates/ops.html", map[string]string{"link": opLink}, subject, op, worker.c)
+		err = mailer.Send("./mailer/templates/ops.html", map[string]string{"link": opLink}, subject, op)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				"recipent": op,
@@ -305,11 +301,11 @@ func (worker *Worker) emailToOps(whitelistRequest types.WhitelistRequest, quoram
 
 func (worker *Worker) getTargetOps() []string {
 	// Strategy: Broadcast / Random with threshold
-	ops := worker.c.Ops
-	if worker.c.DispatchingStrategy == "Broadcast" {
+	ops := viper.GetStringSlice("ops")
+	if viper.GetString("dispatchingStrategy") == "Broadcast" {
 		return ops
 	}
-	n := worker.c.RandomDispatchingThreshold
+	n := viper.GetInt("randomDispatchingThreshold")
 	// Choose random n out of all ops as the target request handlers
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(ops), func(i, j int) { ops[i], ops[j] = ops[j], ops[i] })

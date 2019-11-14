@@ -12,7 +12,6 @@ import (
 	"github.com/rs/cors"
 	"github.com/sirupsen/logrus"
 	"github.com/tywin1104/mc-whitelist/broker"
-	"github.com/tywin1104/mc-whitelist/config"
 	"github.com/tywin1104/mc-whitelist/db"
 )
 
@@ -21,17 +20,15 @@ type Service struct {
 	dbService *db.Service
 	router    *mux.Router
 	broker    *broker.Service
-	c         *config.Config
 	logger    *logrus.Entry
 }
 
 // NewService create new mongoDb service that handles database level operations
-func NewService(db *db.Service, broker *broker.Service, c *config.Config, logger *logrus.Entry) *Service {
+func NewService(db *db.Service, broker *broker.Service, logger *logrus.Entry) *Service {
 	return &Service{
 		dbService: db,
 		router:    mux.NewRouter().StrictSlash(true),
 		broker:    broker,
-		c:         c,
 		logger:    logger,
 	}
 }

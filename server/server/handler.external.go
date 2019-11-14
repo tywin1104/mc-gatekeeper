@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"github.com/tywin1104/mc-whitelist/types"
 	"github.com/tywin1104/mc-whitelist/utils"
 	"go.mongodb.org/mongo-driver/bson"
@@ -187,7 +188,7 @@ func (svc *Service) HandleVerifyMatchingTokens() http.HandlerFunc {
 // return err if either token is invalid or two tokens does not match by assignee relation
 func (svc *Service) verifyMatchingTokens(requestIDToken, admToken string) (*types.WhitelistRequest, string, error) {
 	log := svc.logger
-	opEmail, err := utils.DecodeAndDecrypt(admToken, svc.c.PassPhrase)
+	opEmail, err := utils.DecodeAndDecrypt(admToken, viper.GetString("passphrase"))
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"err": err.Error(),

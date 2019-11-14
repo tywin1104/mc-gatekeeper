@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/spf13/viper"
 )
 
 type credentials struct {
@@ -34,7 +35,7 @@ func (svc *Service) HandleAdminSignin() http.HandlerFunc {
 		}
 
 		// check for valid admin login credentials
-		if !(creds.Username == svc.c.AdminUsername && creds.Password == svc.c.AdminPassword) {
+		if !(creds.Username == viper.GetString("adminUsername") && creds.Password == viper.GetString("adminPassword")) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -53,7 +54,7 @@ func (svc *Service) HandleAdminSignin() http.HandlerFunc {
 		// Declare the token with the algorithm used for signing, and the claims
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 		// Create the JWT string
-		tokenString, err := token.SignedString([]byte(svc.c.JWTTokenSecret))
+		tokenString, err := token.SignedString([]byte(viper.GetString("jwtTokenSecret")))
 		if err != nil {
 			// If there is an error in creating the JWT return an internal server error
 			svc.logger.WithFields(logrus.Fields{
@@ -77,7 +78,7 @@ func (svc *Service) GetAuthMiddleware() *jwtmiddleware.JWTMiddleware {
 	if authMiddleware == nil {
 		authMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
 			ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
-				return []byte(svc.c.JWTTokenSecret), nil
+				return []byte(viper.GetString("jwtTokenSecret")), nil
 			},
 			SigningMethod: jwt.SigningMethodHS256,
 		})

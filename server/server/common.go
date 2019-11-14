@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"github.com/tywin1104/mc-whitelist/types"
 	"github.com/tywin1104/mc-whitelist/utils"
 	"go.mongodb.org/mongo-driver/bson"
@@ -55,7 +56,7 @@ func (svc *Service) updateRequestByID(requestID string, reqBody []byte, admin st
 // Get request object from db by encrypted and url-encoded request ID
 func (svc *Service) getRequestByEncryptedID(requestIDEncoded string) (*types.WhitelistRequest, int, error) {
 	log := svc.logger
-	requestID, err := utils.DecodeAndDecrypt(requestIDEncoded, svc.c.PassPhrase)
+	requestID, err := utils.DecodeAndDecrypt(requestIDEncoded, viper.GetString("passphrase"))
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"err":      err.Error(),

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 type recaptchaRequest struct {
@@ -53,7 +55,7 @@ func (svc *Service) handleVerifyRecaptcha() http.HandlerFunc {
 			http.Error(w, "Unable to unmarshal request body", http.StatusInternalServerError)
 			return
 		}
-		result, err := check(svc.c.RecaptchaPrivateKey, request.RecaptchaToken)
+		result, err := check(viper.GetString("recaptchaPrivateKey"), request.RecaptchaToken)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}

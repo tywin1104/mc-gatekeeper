@@ -11,12 +11,13 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"github.com/urfave/negroni"
 
 	"github.com/streadway/amqp"
 	"github.com/tywin1104/mc-whitelist/broker"
-	"github.com/tywin1104/mc-whitelist/config"
 	"github.com/tywin1104/mc-whitelist/db"
 	"github.com/tywin1104/mc-whitelist/server"
 	"github.com/tywin1104/mc-whitelist/types"
@@ -36,15 +37,22 @@ var newRequest3 *types.WhitelistRequest
 var newRequest4 *types.WhitelistRequest
 
 func TestMain(m *testing.M) {
-	// Mock the whole application
-	config, err := config.LoadConfig()
-	if err != nil {
-		log.Fatal()
+	// Mock the main application using the test configuration file
+	viper.SetConfigName("config_test")
+	viper.AddConfigPath("../")
+	viper.AutomaticEnv()
+	viper.SetConfigType("yml")
+
+	if err := viper.ReadInConfig(); err != nil {
+		log.WithFields(logrus.Fields{
+			"err": err.Error(),
+		}).Fatal("Error reading config file")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(config.MongodbConnStr))
+	fmt.Println(viper.GetString("mongodbConn"))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(viper.GetString("mongodbConn")))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,19 +60,19 @@ func TestMain(m *testing.M) {
 	client.Database("mc-whitelist").Collection("requests").DeleteMany(context.TODO(), bson.M{})
 
 	dbSvc := db.NewService(client)
-	conn, err := amqp.Dial(config.RabbitmqConnStr)
+	conn, err := amqp.Dial(viper.GetString("rabbitMQConn"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	defer conn.Close()
-	broker, err := broker.NewService(conn, config.TaskQueueName)
+	broker, err := broker.NewService(conn, viper.GetString("taskQueueName"))
 	if err != nil {
 		log.Fatal("Unable to setup broker: " + err.Error())
 	}
 	defer broker.Channel.Close()
 	serverLogger := log.WithField("origin", "server")
-	s = server.NewService(dbSvc, broker, config, serverLogger)
+	s = server.NewService(dbSvc, broker, serverLogger)
 
 	// Create mock db objects
 	_id1, err := primitive.ObjectIDFromHex("5dc4dc43f7310f4c2a005673")

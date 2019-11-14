@@ -6,7 +6,7 @@ import (
 	"html/template"
 	"net/smtp"
 
-	c "github.com/tywin1104/mc-whitelist/config"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -26,13 +26,13 @@ func parseTemplate(fileName string, data interface{}) (string, error) {
 }
 
 // Send email from configured SMTP server
-func Send(templateName string, templateData interface{}, subject string, recipent string, appConfig *c.Config) error {
+func Send(templateName string, templateData interface{}, subject string, recipent string) error {
 	body, err := parseTemplate(templateName, templateData)
 	if err != nil {
 		return err
 	}
 	content := "To: " + recipent + "\r\nSubject: " + subject + "\r\n" + mime + "\r\n" + body
-	SMTP := fmt.Sprintf("%s:%d", appConfig.SMTPServer, appConfig.SMTPPort)
-	err = smtp.SendMail(SMTP, smtp.PlainAuth("", appConfig.SMTPEmail, appConfig.SMTPPassword, appConfig.SMTPServer), appConfig.SMTPEmail, []string{recipent}, []byte(content))
+	SMTP := fmt.Sprintf("%s:%d", viper.GetString("SMTPServer"), viper.GetInt("SMTPPort"))
+	err = smtp.SendMail(SMTP, smtp.PlainAuth("", viper.GetString("SMTPEmail"), viper.GetString("SMTPPassword"), viper.GetString("SMTPServer")), viper.GetString("SMTPEmail"), []string{recipent}, []byte(content))
 	return err
 }
