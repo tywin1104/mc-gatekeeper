@@ -82,7 +82,7 @@ func waitForHTTPServer(wg *sync.WaitGroup, port, endpoint string, log *logrus.En
 }
 
 func (svc *Service) routes() {
-	// Endpoints that are public accessible
+	// Endpoints that are "external" to the users through cilent application
 	external := svc.router.PathPrefix("/api/v1/requests").Subrouter()
 	external.HandleFunc("/", svc.HandleCreateRequest()).Methods("POST")
 	external.HandleFunc("/{requestIdEncoded}", svc.HandleGetRequestByID()).Methods("GET")
@@ -107,8 +107,10 @@ func (svc *Service) routes() {
 	svc.router.HandleFunc("/health", svc.HandleHealthCheck()).Methods("GET")
 	// Recaptcha verification endpoint
 	svc.router.HandleFunc("/api/v1/recaptcha/verify", svc.handleVerifyRecaptcha()).Methods("POST")
-	// Endpoint to verify validity of action email
+	// Endpoint to verify validity of action page on the client
 	svc.router.HandleFunc("/api/v1/verify/{requestIdEncoded}", svc.HandleVerifyMatchingTokens()).Methods("GET").Queries("adm", "{adm}")
+	// Endpoint to get minecraft user's current skin (QR Code). Used by client application to verify user identity
+	svc.router.HandleFunc("/api/v1/minecraft/user/{minecraftUsername}/skin/", svc.handleGetSkinURLByUsername()).Methods("GET")
 }
 
 //HandleHealthCheck signals the server is running

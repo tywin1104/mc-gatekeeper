@@ -21,11 +21,11 @@ type recaptchaResponse struct {
 	ErrorCodes  []string  `json:"error-codes"`
 }
 
-const recaptchaServerName = "https://www.google.com/recaptcha/api/siteverify"
+const RECAPTCHA_API_BASEURL = "https://www.google.com/recaptcha/api/siteverify"
 
 func check(recaptchaPrivateKey, response string) (recaptchaResponse, error) {
 	var r recaptchaResponse
-	resp, err := http.PostForm(recaptchaServerName,
+	resp, err := http.PostForm(RECAPTCHA_API_BASEURL,
 		url.Values{"secret": {recaptchaPrivateKey}, "response": {response}})
 	if err != nil {
 		return recaptchaResponse{}, err
