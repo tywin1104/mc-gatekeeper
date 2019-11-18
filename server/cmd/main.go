@@ -79,7 +79,10 @@ func main() {
 	wg.Add(2)
 	// Start the worker
 	workerLogger := log.WithField("origin", "worker")
-	worker := worker.NewWorker(dbSvc, workerLogger)
+	worker, err := worker.NewWorker(dbSvc, workerLogger)
+	if err != nil {
+		log.Fatal("Unable to start worker: " + err.Error())
+	}
 	go worker.Start(&wg)
 	// Setup and start the http REST API server
 	serverLogger := log.WithField("origin", "server")

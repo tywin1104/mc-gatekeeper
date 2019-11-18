@@ -14,23 +14,32 @@ import (
 	"github.com/streadway/amqp"
 	"github.com/tywin1104/mc-whitelist/db"
 	"github.com/tywin1104/mc-whitelist/mailer"
+	"github.com/tywin1104/mc-whitelist/rcon"
 	"github.com/tywin1104/mc-whitelist/types"
 	"github.com/tywin1104/mc-whitelist/utils"
 	"go.mongodb.org/mongo-driver/bson"
+	try "gopkg.in/matryer/try.v1"
 )
 
 // Worker defines message queue worker
 type Worker struct {
-	dbService *db.Service
-	logger    *logrus.Entry
+	dbService  *db.Service
+	logger     *logrus.Entry
+	rconClient *rcon.Client
 }
 
 // NewWorker creates a worker to constantly listen and handle messages in the queue
-func NewWorker(db *db.Service, logger *logrus.Entry) *Worker {
-	return &Worker{
-		dbService: db,
-		logger:    logger,
+func NewWorker(db *db.Service, logger *logrus.Entry) (*Worker, error) {
+	// Initialize rcon client to interact with game server
+	rconClient, err := rcon.NewClient(viper.GetString("RCONServer"), viper.GetInt("RCONPort"), viper.GetString("RCONPassword"))
+	if err != nil {
+		return nil, err
 	}
+	return &Worker{
+		dbService:  db,
+		logger:     logger,
+		rconClient: rconClient,
+	}, nil
 }
 
 func (worker *Worker) failOnError(err error, msg string) {
@@ -128,12 +137,22 @@ func (worker *Worker) processApproval(d amqp.Delivery, request types.WhitelistRe
 		"ID":       request.ID,
 		"Type":     "Approval Task",
 	}).Info("Received new task")
-	err := worker.emailDecision(request)
+
+	// Concrete whitelist action on the game server
+	err := worker.whitelistUser(request.Username)
+	if err != nil {
+		worker.logger.WithFields(logrus.Fields{
+			"username": request.Username,
+			"err":      err.Error(),
+		}).Error("Unable to issue whitelist cmd on the game server")
+		d.Nack(false, false)
+		return
+	}
+	err = worker.emailDecision(request)
 	if err != nil {
 		d.Nack(false, false)
 		return
 	}
-	// TODO: Add interface to do concrete whitelist action on the game server
 	d.Ack(false)
 }
 
@@ -312,6 +331,23 @@ func (worker *Worker) getTargetOps() []string {
 	return ops[:n]
 }
 
+// issue whitelist command againest a user with retries
+func (worker *Worker) whitelistUser(username string) error {
+	err := try.Do(func(attempt int) (bool, error) {
+		_, e := worker.rconClient.SendCommand("whitelist add " + username)
+		if e != nil {
+			time.Sleep(5 * time.Second) // 5 seconds delay between retrys
+		}
+		return attempt < 3, e // try 3 times
+	})
+	if err != nil {
+		return err
+	}
+	worker.logger.WithFields(logrus.Fields{
+		"username": username,
+	}).Info("User has been whitelisted successfully")
+	return nil
+}
 func deserialize(b []byte) (types.WhitelistRequest, error) {
 	var msg types.WhitelistRequest
 	buf := bytes.NewBuffer(b)

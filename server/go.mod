@@ -13,6 +13,7 @@ require (
 	github.com/gorilla/mux v1.6.2
 	github.com/makiuchi-d/gozxing v0.0.0-20190830103442-eaff64b1ceb7
 	github.com/rs/cors v1.7.0
+	github.com/seeruk/minecraft-rcon v0.0.0-20190221212056-6ab996d90449
 	github.com/sirupsen/logrus v1.2.0
 	github.com/smartystreets/goconvey v0.0.0-20190731233626-505e41936337 // indirect
 	github.com/spf13/viper v1.5.0
@@ -28,5 +29,6 @@ require (
 	golang.org/x/text v0.3.2 // indirect
 	golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898 // indirect
 	gopkg.in/fsnotify.v1 v1.4.7
+	gopkg.in/matryer/try.v1 v1.0.0-20150601225556-312d2599e12e
 	gopkg.in/yaml.v2 v2.2.4
 )
