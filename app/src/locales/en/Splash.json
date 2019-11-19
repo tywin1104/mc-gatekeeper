@@ -20,6 +20,8 @@
     "InvalidUsernameErrMsg": "Unable to validate username from Mojang Account Server. Invalid username.",
     "EmptyUsernameErrMsg": "Could not verify: Empty username",
     "SubmissionInternalErrMsg": "We are sorry as we are unable to process your request at this moment. Please try later or contact server admin",
+    "RepeatRequestErrMsg": "There is a pending request associated with this username. You can not submit another request at this time. If you haven't received result within 24 hours, please contact admin",
+    "RequestAlreadyApprovedErrMsg": "The request associated with this username is already approved",
     "VefiryInstruction": "To verify your identity for the specifid Minecraft username, please follow below instructions:",
     "VerifyStep1": "Download the verification skin here",
     "VerifyStep2-1": "Head over to ",

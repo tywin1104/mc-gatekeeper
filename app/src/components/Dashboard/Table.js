@@ -59,16 +59,16 @@ class Table extends React.Component {
     });
     return (
       <MaterialTable
-        title="All Requests"
+        title={i18next.t('Dashboard.Table.AllRequests')}
         columns={[
-          { title: 'ID', field: '_id' },
-          { title: 'Username', field: 'username' },
-          { title: 'Email', field: 'email' },
-          { title: 'Application Submitted', field: 'timestamp', },
-          { title: 'Status', field: 'status',},
-          { title: 'Processed', field: 'processedTimestamp',},
-          { title: 'Admin', field: 'admin',},
-          { title: 'Assignees', field: 'assignees',},
+          { title: i18next.t('Dashboard.Table.ID'), field: '_id' },
+          { title: i18next.t('Dashboard.Table.Username'), field: 'username' },
+          { title: i18next.t('Dashboard.Table.Email'), field: 'email' },
+          { title: i18next.t('Dashboard.Table.Submitted'), field: 'timestamp', },
+          { title: i18next.t('Dashboard.Table.Status'), field: 'status',},
+          { title: i18next.t('Dashboard.Table.Processed'), field: 'processedTimestamp',},
+          { title: i18next.t('Dashboard.Table.Admin'), field: 'admin',},
+          { title: i18next.t('Dashboard.Table.Assignees'), field: 'assignees',},
         ]}
         data = {requests}
         detailPanel={rowData => {

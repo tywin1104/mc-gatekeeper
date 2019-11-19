@@ -12,19 +12,6 @@ import QRCode from "qrcode.react"
 const RECAPTCHA_SITEKEY = window.RECAPTCHA_SITEKEY ? window.RECAPTCHA_SITEKEY : process.env.REACT_APP_RECAPTCHA_SITEKEY;
 console.log(RECAPTCHA_SITEKEY)
 
-
-const VERIFICATION_QRCODE_CONTENT = "verified"
-
-// Username verification related error messages
-const ERR_SKIN_NOT_FOUND = i18next.t('Splash.SkinNotFoundErrMsg')
-const ERR_SKIN_NOT_MATCH = i18next.t('Splash.SkinNotMatchErrMsg')
-const ERR_VERIFICATION = i18next.t('Splash.VerificationErrMsg')
-const ERR_RATE_LIMIT = i18next.t('Splash.RateLimitErrMsg')
-const ERR_INVALID_USERNAME = i18next.t('Splash.InvalidUsernameErrMsg')
-const ERR_EMPTY_USERNAME= i18next.t('Splash.EmptyUsernameErrMsg')
-
-// Request submission related error messages
-const ERR_INTERNAL = i18next.t('Splash.SubmissionInternalErrMsg')
 class Application extends React.Component {
 
   constructor(props) {
@@ -42,6 +29,20 @@ class Application extends React.Component {
       verified: false,
       loading: false,
     };
+    this.VERIFICATION_QRCODE_CONTENT = "verified"
+
+    // Username verification related error messages
+    this.ERR_SKIN_NOT_FOUND = i18next.t('Splash.SkinNotFoundErrMsg')
+    this.ERR_SKIN_NOT_MATCH = i18next.t('Splash.SkinNotMatchErrMsg')
+    this.ERR_VERIFICATION = i18next.t('Splash.VerificationErrMsg')
+    this.ERR_RATE_LIMIT = i18next.t('Splash.RateLimitErrMsg')
+    this.ERR_INVALID_USERNAME = i18next.t('Splash.InvalidUsernameErrMsg')
+    this.ERR_EMPTY_USERNAME= i18next.t('Splash.EmptyUsernameErrMsg')
+    this.ERR_REPEAT_REQUEST = i18next.t('Splash.RepeatRequestErrMsg')
+    this.ERR_ALREADY_APPROVED = i18next.t('Splash.RequestAlreadyApprovedErrMsg')
+
+    // Request submission related error messages
+    this.ERR_INTERNAL = i18next.t('Splash.SubmissionInternalErrMsg')
   }
 
   onToggle= () => {
@@ -64,20 +65,29 @@ class Application extends React.Component {
           }
         })
         .then(res => {
-          if (res.status === 200) {
+          // Created
+          if (res.status === 201) {
               this.setState({
                   success: true
               })
           }})
         .catch(error => {
             if (error.response) {
-                if(error.response.status === 400) {
+                // 422 Unprocessable Entity means there is pending request with that username in the system
+                // (duplicate request)
+                let statusCode = error.response.status
+                if(statusCode === 422) {
                     this.setState({
-                        errorMsg: error.response.data.message
+                        errorMsg: this.ERR_REPEAT_REQUEST
                     })
-                }else {
+                }else if(statusCode === 409) {
+                  // 409 Conflict indicates the request with this username is already approved
+                  this.setState({
+                      errorMsg: this.ERR_ALREADY_APPROVED
+                  })
+                } else if(statusCode === 500) {
                     this.setState({
-                        errorMsg: ERR_INTERNAL
+                        errorMsg: this.ERR_INTERNAL
                     })
                 }
             }
@@ -126,7 +136,7 @@ class Application extends React.Component {
     let username = this.state.username
     if(!username.trim()) {
       this.setState({
-        errorMsg: ERR_EMPTY_USERNAME
+        errorMsg: this.ERR_EMPTY_USERNAME
       })
       return
     }
@@ -138,7 +148,7 @@ class Application extends React.Component {
           // Unexpected case
           if(!skinImageURL) {
             this.setState({
-              errorMsg: ERR_SKIN_NOT_FOUND,
+              errorMsg: this.ERR_SKIN_NOT_FOUND,
             })
             return
           }
@@ -147,17 +157,17 @@ class Application extends React.Component {
             // Thie bloack guarantees the skin image url of some sort
             if(!res.data[0].symbol[0].error) {
               // Here indicates the skin image is indeed a valid readable qrcode
-              if(res.data[0].symbol[0].data === VERIFICATION_QRCODE_CONTENT) {
+              if(res.data[0].symbol[0].data === this.VERIFICATION_QRCODE_CONTENT) {
                 this.setState({verified: true})
               }else {
                 this.setState({
-                  errorMsg: ERR_SKIN_NOT_MATCH
+                  errorMsg: this.ERR_SKIN_NOT_MATCH
                 })
               }
             }else {
               // Skin image is not a valid readble qrcode
               this.setState({
-                errorMsg: ERR_SKIN_NOT_MATCH
+                errorMsg: this.ERR_SKIN_NOT_MATCH
               })
             }
             this.setState({ loading: false })
@@ -166,7 +176,7 @@ class Application extends React.Component {
             // Invalid qrcode reader api call
             // Unexpected case
             this.setState({
-              errorMsg: ERR_VERIFICATION
+              errorMsg: this.ERR_VERIFICATION
             })
             this.setState({ loading: false })
           })
@@ -177,17 +187,17 @@ class Application extends React.Component {
             // Rate limit for Mojang API reached
             if(error.response.status === 429) {
                 this.setState({
-                    errorMsg: ERR_RATE_LIMIT
+                    errorMsg: this.ERR_RATE_LIMIT
                 })
             }else if(error.response.status === 400) {
               // getSkinImage will return 400 if unable to get uuid from the given username
               this.setState({
-                errorMsg: ERR_INVALID_USERNAME
+                errorMsg: this.ERR_INVALID_USERNAME
               })
             }else {
               // Internal error caused from unexpected behaviors from Mojang API server
               this.setState({
-                errorMsg: ERR_VERIFICATION
+                errorMsg: this.ERR_VERIFICATION
               })
             }
         }
@@ -252,7 +262,7 @@ render() {
                     <div>
                     <QRCode style={{display: "none"}}
                       id="qrcode"
-                      value={VERIFICATION_QRCODE_CONTENT}
+                      value={this.VERIFICATION_QRCODE_CONTENT}
                       size={32}
                       level={"H"}
                       includeMargin={false}

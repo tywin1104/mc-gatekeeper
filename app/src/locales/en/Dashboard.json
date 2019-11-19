@@ -16,6 +16,16 @@
         "ApproveTooltip": "Approve Request",
         "DenyTooltip": "Deny Request",
         "Note": "Note From Admin: ",
-        "ApplicationText": "Application Text: "
+        "ApplicationText": "Application Text: ",
+        "AllRequests": "All Requests",
+        "ID": "ID",
+        "Username": "Username",
+        "Email": "Email",
+        "Submitted": "Application Submitted",
+        "Status": "Status",
+        "Processed": "Processed At",
+        "Admin": "Admin",
+        "Assignees": "Assignees",
+        "Actions": "Actions"
     }
 }
