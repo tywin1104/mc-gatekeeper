@@ -44,8 +44,12 @@ paths:
           description: Invalid request body
         500:
           description: Internal server error
-        200:
-          description: Request created or there is existing pending request for that user
+        422:
+          description: There is a pending request associated with this username
+        409:
+          description: The request associated with this username is already approved
+        201:
+          description: Request created
   /requests/{encryptedRequestID}:
     get:
       tags:
@@ -206,6 +210,31 @@ paths:
           description: Valid admin token
         400:
           description: Missing or invalid admin token
+  /minecraft/user/{minecraftUsername}/skin/:
+    get:
+      tags:
+      - utils
+      summary: Get the image url of skin for a Minecraft user
+      operationId: gatMinecraftUserSkin
+      parameters:
+      - name: minecraftUsername
+        in: path
+        description: Minecraft username associated with Mojang account 
+        required: true
+        type: string
+      
+      responses:
+        429:
+          description: Too many requests. Mojang API rate limit reached
+        400:
+          description: Invalid username. Unable to map to a corresponding UUID
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/MinecraftUserSkinResponse'
+          
+        500:
+          description: Internal server error
   /recaptcha/verify:
     post:
       tags:
@@ -428,6 +457,18 @@ definitions:
           type: string
           example: 
            - "invalid-input-response"
+  MinecraftUserSkinResponse:
+    type: object
+    properties:
+      skin:
+        $ref: '#/definitions/MinecraftUserSkinContent'
+  MinecraftUserSkinContent:
+    type: object
+    properties:
+      url:
+        type: string
+        example: http://textures.minecraft.net/texture/ef69841221f18aeed48a03f7ad8f8e34841c58f3bb0b9408d81d0a922d020767
+        
 # Added by API Auto Mocking Plugin
 host: virtserver.swaggerhub.com
 basePath: /tywinzhang/mc-whitelist/1.0.0

@@ -89,7 +89,7 @@ func (svc *Service) HandleCreateRequest() http.HandlerFunc {
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusCreated)
 		msg := map[string]interface{}{"message": "success", "created": newRequestID}
 		json.NewEncoder(w).Encode(msg)
 	}
@@ -152,12 +152,13 @@ func (svc *Service) validateCreateRequest(newRequest *types.WhitelistRequest) (i
 		var message string
 		if foundRequests[0].Status == "Approved" {
 			message = "The request associated with this username is already approved"
+			return http.StatusConflict, errors.New(message)
 		} else {
 			message = "There is a pending request associated with this username. " +
 				"You can not submit another request at this time. If you haven't received " +
 				"result within 24 hours, please contact admin"
+			return http.StatusUnprocessableEntity, errors.New(message)
 		}
-		return http.StatusBadRequest, errors.New(message)
 	}
 	return http.StatusOK, nil
 }

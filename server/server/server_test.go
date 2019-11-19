@@ -35,6 +35,7 @@ var newRequest1 *types.WhitelistRequest
 var newRequest2 *types.WhitelistRequest
 var newRequest3 *types.WhitelistRequest
 var newRequest4 *types.WhitelistRequest
+var newRequest5 *types.WhitelistRequest
 
 func TestMain(m *testing.M) {
 	// Mock the main application using the test configuration file
@@ -128,6 +129,16 @@ func TestMain(m *testing.M) {
 		Timestamp: time.Now(),
 	}
 
+	newRequest5 = &types.WhitelistRequest{
+		ID:        _id4,
+		Username:  "user5",
+		Email:     "user5@gmail.com",
+		Age:       21,
+		Gender:    "female",
+		Status:    "Approved",
+		Timestamp: time.Now(),
+	}
+
 	// Run all test cases
 	m.Run()
 }
@@ -152,9 +163,9 @@ func TestCreateRequest(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(s.HandleCreateRequest())
 	handler.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusOK {
+	if status := rr.Code; status != http.StatusCreated {
 		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
+			status, http.StatusCreated)
 	}
 }
 
@@ -181,9 +192,67 @@ func TestCreateDupRequest(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(s.HandleCreateRequest())
 	handler.ServeHTTP(rr, req)
-	if status := rr.Code; status != http.StatusBadRequest {
+	if status := rr.Code; status != http.StatusUnprocessableEntity {
 		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusBadRequest)
+			status, http.StatusUnprocessableEntity)
+	}
+}
+
+func TestCreateRequestWithAlreadyApproved(t *testing.T) {
+	dbClient.Database("mc-whitelist").Collection("requests").DeleteMany(context.TODO(), bson.M{})
+	dbClient.Database("mc-whitelist").Collection("requests").InsertOne(context.TODO(), newRequest5)
+
+	// Try to create request with same username again should fail
+	var jsonStr = []byte(`{
+		"info": {
+		  "applicationText": "I'd like to join the server"
+		},
+		"username": "user5",
+		"email": "user5fake@gmail.com",
+		"age": 19,
+		"gender": "female"
+	  }`)
+
+	req, err := http.NewRequest("POST", "/api/v1/requests/", bytes.NewBuffer(jsonStr))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(s.HandleCreateRequest())
+	handler.ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusConflict {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusConflict)
+	}
+}
+
+func TestCreateRequestAfterDenial(t *testing.T) {
+	dbClient.Database("mc-whitelist").Collection("requests").DeleteMany(context.TODO(), bson.M{})
+	dbClient.Database("mc-whitelist").Collection("requests").InsertOne(context.TODO(), newRequest4)
+
+	// Try to create request with same username again should fail
+	var jsonStr = []byte(`{
+		"info": {
+		  "applicationText": "I'd like to join the server"
+		},
+		"username": "user4",
+		"email": "user4fake@gmail.com",
+		"age": 19,
+		"gender": "female"
+	  }`)
+
+	req, err := http.NewRequest("POST", "/api/v1/requests/", bytes.NewBuffer(jsonStr))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(s.HandleCreateRequest())
+	handler.ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusCreated {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusCreated)
 	}
 }
 
