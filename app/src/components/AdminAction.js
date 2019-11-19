@@ -2,6 +2,7 @@ import React from "react";
 import { ListGroup, ListGroupItem, Container, Button, Jumbotron, Alert, Form, FormGroup, Input } from 'reactstrap';
 import moment from 'moment'
 import RequestsService from '../service/RequestsService'
+import i18next from "i18next";
 import './AdminAction.css';
 
 class AdminAction extends React.Component {
@@ -76,15 +77,15 @@ class AdminAction extends React.Component {
     promise
     .then(res => {
       if (res.status === 200) {
-          alert("Completed! Thank you!")
+          alert(i18next.t('Action.CompletedMsg'))
           window.location.reload();
       }})
     .catch(error => {
         if (error.response) {
             if(error.response.status === 400) {
-                alert("Invalid token. Please do not modify the original link sent to you via email")
+                alert(i18next.t('Action.InvalidTokenErrMsg'))
             }else {
-                alert("Unable to perform action due to internal server error")
+                alert(i18next.t('Action.InternalErrMsg'))
             }
         }
     });
@@ -97,36 +98,36 @@ class AdminAction extends React.Component {
           display = (
         <Container>
         <ListGroup>
-            <ListGroupItem active  action>Request Summary</ListGroupItem>
-            <ListGroupItem  action><strong>Gender</strong> {currentRequest.gender}</ListGroupItem>
-            <ListGroupItem  action><strong>Age</strong> {currentRequest.age}</ListGroupItem>
+            <ListGroupItem active  action>{i18next.t('Action.Title')}</ListGroupItem>
+            <ListGroupItem  action><strong>{i18next.t('Action.Gender')}</strong> {currentRequest.gender}</ListGroupItem>
+            <ListGroupItem  action><strong>{i18next.t('Action.Age')}</strong> {currentRequest.age}</ListGroupItem>
             <ListGroupItem  action>
-                <strong>Application Text</strong>
+                <strong>{i18next.t('Action.ApplicationText')}</strong>
                 <Jumbotron>
                     <p>{currentRequest.info.applicationText}</p>
                 </Jumbotron>
             </ListGroupItem>
-            <ListGroupItem disabled  action>Application submitted { moment.parseZone(currentRequest.timestamp).local().fromNow()}</ListGroupItem>
+            <ListGroupItem disabled  action>{i18next.t('Action.Submitted')} { moment.parseZone(currentRequest.timestamp).local().fromNow()}</ListGroupItem>
         </ListGroup>
         <Form>
             <FormGroup>
-            <Input type="textarea" name="note" placeholder="Add note here (Optional)" value={this.state.note}  onChange={this.handleInputChange} />
+            <Input type="textarea" name="note" placeholder={i18next.t('Action.NotePlaceHolder')} value={this.state.note}  onChange={this.handleInputChange} />
             </FormGroup>
         </Form>
         <Button className="actionButton"
             onClick={(e) => this.onDecision(e, "Approved")}  color="success" outline  size="lg" type="button">
-            Approve
+            {i18next.t('Action.Approve')}
         </Button>
         <Button className="actionButton"
             onClick={(e) => this.onDecision(e, "Denied")} color="danger" outline  size="lg" type="button">
-            Deny
+            {i18next.t('Action.Deny')}
         </Button>
 
         <Jumbotron fluid>
             <Container fluid>
-            <h3>Notes to ops:</h3>
+            <h3>{i18next.t('Action.NoteTitle')}</h3>
             <p className="lead">
-            orem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
+            {i18next.t('Action.NoteContent')}
             </p>
             </Container>
         </Jumbotron>
@@ -136,8 +137,7 @@ class AdminAction extends React.Component {
         display = (
         <div>
         <Alert color="info">
-            The request you are looking at is already fulfilled.
-            Thank you for taking your time.
+            {i18next.t('Action.FulfilledMsg')}
         </Alert>
         </div>
         )

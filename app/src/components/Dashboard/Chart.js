@@ -2,6 +2,7 @@ import React from 'react';
 import { LineChart, Line, XAxis, YAxis, Label, ResponsiveContainer } from 'recharts';
 import Title from './Title';
 import moment from "moment"
+import i18next from "i18next";
 let _ = require('lodash');
 
 
@@ -33,7 +34,7 @@ export default function Chart(props) {
 
   return (
     <React.Fragment>
-      <Title>New Applications</Title>
+      <Title>{i18next.t('Dashboard.Chart.Title')}</Title>
       <ResponsiveContainer>
         <LineChart
           data={data}
@@ -47,7 +48,7 @@ export default function Chart(props) {
           <XAxis dataKey="time" />
           <YAxis>
             <Label angle={270} position="left" style={{ textAnchor: 'middle' }}>
-              Count
+            {i18next.t('Dashboard.Chart.Count')}
             </Label>
           </YAxis>
           <Line type="monotone" dataKey="amount" stroke="#556CD6" dot={false} />

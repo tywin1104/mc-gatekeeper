@@ -1,0 +1,12 @@
+{
+    "Title": "你的申请状态",
+    "Username": "用户名",
+    "Email": "电子邮件",
+    "Status": "申请状态",
+    "Submitted": "申请提交于",
+    "ReferenceID": "此申请参考号",
+    "Message": "如果您没有在24小时内收到回复， 请用此申请参考号来联系服务器管理员",
+    "Pending": "审核中",
+    "Approved": "申请已通过",
+    "Denied": "申请被拒绝"
+}

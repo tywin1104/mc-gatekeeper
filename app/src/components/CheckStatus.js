@@ -2,6 +2,7 @@ import React from "react";
 import { ListGroup, ListGroupItem, Container, Button } from 'reactstrap';
 import moment from 'moment'
 import RequestsService from '../service/RequestsService'
+import i18next from "i18next";
 import './CheckStatus.css';
 
 class CheckStatus extends React.Component {
@@ -41,26 +42,37 @@ class CheckStatus extends React.Component {
       }
   }
 
+  getApplicationStatusText= (status) => {
+    if(status === "Pending") {
+        return i18next.t('Status.Pending')
+    }else if(status === "Approved") {
+        return i18next.t('Status.Approved')
+    }else if(status === "Denied") {
+        return i18next.t('Status.Denied')
+    }
+  }
+
   render() {
       let display
       let currentRequest = this.state.currentRequest
       if(!this.state.invalid && currentRequest) {
           display = (
         <Container>
+
         <ListGroup>
-            <ListGroupItem active tag="a" href="#" action>Your Application Status</ListGroupItem>
-            <ListGroupItem tag="a" action><strong>Username  </strong> {currentRequest.username}</ListGroupItem>
-            <ListGroupItem tag="a"  action><strong>Email  </strong> {currentRequest.email}</ListGroupItem>
+            <ListGroupItem active tag="a" href="#" action>{i18next.t('Status.Title')}</ListGroupItem>
+            <ListGroupItem tag="a" action><strong>{i18next.t('Status.Username')}  </strong> {currentRequest.username}</ListGroupItem>
+            <ListGroupItem tag="a"  action><strong>{i18next.t('Status.Email')}  </strong> {currentRequest.email}</ListGroupItem>
             <ListGroupItem tag="a" action>
-                <strong>Status  </strong>
+                <strong>{i18next.t('Status.Status')} </strong>
                 <Button
-                    color={this.getButtonColor(currentRequest.status)} type="button">{currentRequest.status}
+                    color={this.getButtonColor(currentRequest.status)} type="button">{this.getApplicationStatusText(currentRequest.status)}
                 </Button>
             </ListGroupItem>
-            <ListGroupItem tag="a"  action><strong>Reference ID  </strong> {currentRequest._id}</ListGroupItem>
+            <ListGroupItem tag="a"  action><strong>{i18next.t('Status.ReferenceID')}  </strong> {currentRequest._id}</ListGroupItem>
             <ListGroupItem disabled tag="a" href="#" action>
-                <p>Application submitted { moment.parseZone(currentRequest.timestamp).local().fromNow()}</p>
-                <p>If you haven't heard from us within 24 hours, please contact us with your application ID above for reference</p>
+                <p>{i18next.t('Status.Submitted')} { moment.parseZone(currentRequest.timestamp).local().fromNow()}</p>
+                <p>{i18next.t('Status.Message')}</p>
             </ListGroupItem>
         </ListGroup>
         </Container>

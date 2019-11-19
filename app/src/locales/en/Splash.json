@@ -6,5 +6,31 @@
     "Age": "Age",
     "ApplicationText": "ApplicationText",
     "ApplicationTextPlaceholder": "tell us about your experience with minecraft and minecraft servers",
-    "RadioboxDescription": "I've read the <a href=\"#\">server rules</a> and I agree to submit my application to join"
+    "RadioboxDescription": "I've read the server rules and I agree to submit my application to join",
+    "Gender_Male": "Male",
+    "Gender_Female": "Female",
+    "Gender_Other": "Other",
+    "SubmitButton": "Submit Application",
+    "Success": "Success",
+    "SuccessMsg": "Your application is on the way.. Check your email for confirmation.",
+    "SkinNotFoundErrMsg": "There is no skin associated with this user account.",
+    "SkinNotMatchErrMsg": "The skin associated with this account does not match the verification skin. Please follow instruction and try again",
+    "VerificationErrMsg": "Unable to verify your account. Please follow instruction and try again",
+    "RateLimitErrMsg": "Attempt too frequently. Please try after a minute",
+    "InvalidUsernameErrMsg": "Unable to validate username from Mojang Account Server. Invalid username.",
+    "EmptyUsernameErrMsg": "Could not verify: Empty username",
+    "SubmissionInternalErrMsg": "We are sorry as we are unable to process your request at this moment. Please try later or contact server admin",
+    "VefiryInstruction": "To verify your identity for the specifid Minecraft username, please follow below instructions:",
+    "VerifyStep1": "Download the verification skin here",
+    "VerifyStep2-1": "Head over to ",
+    "VerifyStep2-2": "log in with your minecraft(mojang) account",
+    "VerifyStep3": "Under SKIN section, select Classic model and upload the downloaded file as custom skin",
+    "VerifyStep4": "Once the skin is uploaded and updated, click",
+    "VerifyStep5": "If everything is good, verification should succeed. You can change your skin back to your favoriate one afterwards",
+    "VerifyButton": "Verify My Account",
+    "DownloadButton": "Download Me",
+    "Verified": "Verified",
+    "NotVerified": "Not Verified"
+
+
 }

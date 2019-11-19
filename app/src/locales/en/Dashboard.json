@@ -1,0 +1,21 @@
+{
+    "Title": "Dashboard",
+    "Chart": {
+        "Title": "New Applications",
+        "Count": "Count"
+
+    },
+    "Stats": {
+        "Pending": "Pending requests",
+        "Fulfilled": "Fulfilled requests",
+        "ResponseTime": "Average Response Time"
+
+    },
+    "Table": {
+        "OperationErrMsg": "Internal server error",
+        "ApproveTooltip": "Approve Request",
+        "DenyTooltip": "Deny Request",
+        "Note": "Note From Admin: ",
+        "ApplicationText": "Application Text: "
+    }
+}

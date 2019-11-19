@@ -20,6 +20,7 @@ import Chart from './Chart';
 import Stats from './Stats';
 import Table from './Table';
 import RequestsService from '../../service/RequestsService';
+import i18next from "i18next";
 
 
 
@@ -197,7 +198,7 @@ class Dashboard extends React.Component {
             <MenuIcon />
           </IconButton>
           <Typography component="h1" variant="h6" color="inherit" noWrap className={classes.title}>
-            Dashboard
+            {i18next.t('Dashboard.Title')}
           </Typography>
         </Toolbar>
       </AppBar>
@@ -245,7 +246,7 @@ class Dashboard extends React.Component {
         </Container>
         <Typography variant="body2" color="textSecondary" align="center">
         {'Copyright © '}
-        <Link color="inherit" href="https://material-ui.com/">
+        <Link color="inherit">
           Your Website
         </Link>{' '}
         {new Date().getFullYear()}

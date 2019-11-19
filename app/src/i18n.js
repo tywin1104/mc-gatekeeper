@@ -17,7 +17,7 @@ i18n
       wait: true,
     },
     resources: resources,
-    lng: 'en',
+    lng: 'zh',
     fallbackLng: "en",
     debug: true,
 

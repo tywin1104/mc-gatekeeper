@@ -140,7 +140,11 @@ func (svc *Service) handleGetSkinURLByUsername() http.HandlerFunc {
 		username := mux.Vars(r)["minecraftUsername"]
 		uuid, err := getUUID(username)
 		if err != nil {
-			fmt.Println(err)
+			svc.logger.WithFields(logrus.Fields{
+				"username": username,
+			}).Info("Unable to get uuid for the user")
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 		val, err := getSkinBase64FromProfile(uuid)
 		if err != nil {

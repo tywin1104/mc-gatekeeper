@@ -1,0 +1,17 @@
+{
+    "Title": "申请者信息概要",
+    "Gender": "性别",
+    "Age": "年龄",
+    "Status": "申请状态",
+    "ApplicationText": "申请信息",
+    "Submitted": "申请提交于",
+    "NotePlaceHolder": "管理员可以在此处添加备注",
+    "Approve": "通过",
+    "Deny": "拒绝",
+    "FulfilledMsg": "这个申请已经完成审核流程. 十分感谢！",
+    "NoteTitle": "服务器管理员须知： ",
+    "NoteContent": "orem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.",
+    "CompletedMsg": "提交成功。谢谢！",
+    "InternalErrMsg": "服务器内部错误。无法提交请求，请稍后重试。",
+    "InvalidTokenErrMsg": "验证失败，请不要改动邮件中的链接。"
+}

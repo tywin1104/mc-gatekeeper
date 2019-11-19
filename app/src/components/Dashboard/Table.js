@@ -10,6 +10,7 @@ import FaceIcon from '@material-ui/icons/Face';
 import CommentIcon from '@material-ui/icons/Comment';
 import moment from 'moment'
 import RequestsService from '../../service/RequestsService';
+import i18next from "i18next";
 
 class Table extends React.Component {
   onApprove = (event, request) => {
@@ -21,7 +22,7 @@ class Table extends React.Component {
         this.props.handleChangeRequestStatus(requestID, "Approved")
       }})
     .catch(error => {
-       alert("Internal server error")
+       alert(i18next.t('Dashboard.Table.OperationErrMsg'))
     });
   }
 
@@ -34,7 +35,7 @@ class Table extends React.Component {
         this.props.handleChangeRequestStatus(requestID, "Denied")
       }})
     .catch(error => {
-       alert("Internal server error")
+       alert(i18next.t('Dashboard.Table.OperationErrMsg'))
     });
   }
 
@@ -88,14 +89,14 @@ class Table extends React.Component {
               </ListItem>
               <ListItem button>
                 <ListItemIcon>
-                  <NotesIcon />
+                  <NotesIcon /> <stong>{i18next.t('Dashboard.Table.ApplicationText')}</stong>
                 </ListItemIcon>
                 <ListItemText primary={rowData.info.applicationText}/>
               </ListItem>
               {/* Hide note section if the data does not contain it */}
               <ListItem button style={{display: rowData.note ? '' : 'none' }}>
                 <ListItemIcon>
-                  <CommentIcon />
+                  <CommentIcon /> <stong>{i18next.t('Dashboard.Table.Note')}</stong>
                 </ListItemIcon>
                 <ListItemText primary={rowData.note}/>
               </ListItem>
@@ -107,13 +108,13 @@ class Table extends React.Component {
         actions={[
           rowData => ({
             icon: 'check',
-            tooltip: 'Approve request',
+            tooltip: i18next.t('Dashboard.Table.ApproveTooltip'),
             onClick: (event, rowData) => this.onApprove(event, rowData),
             disabled: rowData.status !== "Pending"
           }),
           rowData => ({
             icon: 'close',
-            tooltip: 'Deny request',
+            tooltip: i18next.t('Dashboard.Table.DenyTooltip'),
             onClick: (event, rowData) => this.onDeny(event, rowData),
             disabled: rowData.status !== "Pending"
           })
