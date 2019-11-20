@@ -109,7 +109,7 @@ class Dashboard extends React.Component {
     super(props)
     this.state = {
       open: true,
-      requests: [],
+      requests: null,
       auth_header : {}
     };
   }
@@ -168,7 +168,7 @@ class Dashboard extends React.Component {
   }
 
   render() {
-    if(!this.state.requests) {
+    if(this.state.requests == null) {
       return <div>Loading...</div>
     }
     let pendingRequests = this.state.requests.filter(request => {

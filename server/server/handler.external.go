@@ -187,26 +187,26 @@ func (svc *Service) HandleVerifyMatchingTokens() http.HandlerFunc {
 
 // returns request object and corresponding op's email if tokens match
 // return err if either token is invalid or two tokens does not match by assignee relation
-func (svc *Service) verifyMatchingTokens(requestIDToken, admToken string) (*types.WhitelistRequest, string, error) {
+func (svc *Service) verifyMatchingTokens(requestIDToken, admToken string) (types.WhitelistRequest, string, error) {
 	log := svc.logger
 	opEmail, err := utils.DecodeAndDecrypt(admToken, viper.GetString("passphrase"))
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"err": err.Error(),
 		}).Error("Unable to decode adm token")
-		return nil, "", err
+		return types.WhitelistRequest{}, "", err
 	}
 	request, _, err := svc.getRequestByEncryptedID(requestIDToken)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"err": err.Error(),
 		}).Error("Unable to get request by enceyptedID")
-		return nil, "", err
+		return types.WhitelistRequest{}, "", err
 	}
 	for _, op := range request.Assignees {
 		if opEmail == op {
 			return request, opEmail, nil
 		}
 	}
-	return nil, "", errors.New("Tokens do not match")
+	return types.WhitelistRequest{}, "", errors.New("Tokens do not match")
 }

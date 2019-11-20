@@ -52,7 +52,7 @@ func (s *Service) CreateRequest(newRequest types.WhitelistRequest) (primitive.Ob
 }
 
 // GetRequests query for whitelistRequests in db
-func (s *Service) GetRequests(limit int64, filter interface{}) ([]*types.WhitelistRequest, error) {
+func (s *Service) GetRequests(limit int64, filter interface{}) ([]types.WhitelistRequest, error) {
 	findOptions := options.Find()
 	if limit != -1 {
 		findOptions.SetLimit(limit)
@@ -63,7 +63,7 @@ func (s *Service) GetRequests(limit int64, filter interface{}) ([]*types.Whiteli
 		return nil, err
 	}
 
-	var requests []*types.WhitelistRequest
+	requests := make([]types.WhitelistRequest, 0)
 	for cur.Next(context.TODO()) {
 		var request types.WhitelistRequest
 		err := cur.Decode(&request)
@@ -71,7 +71,7 @@ func (s *Service) GetRequests(limit int64, filter interface{}) ([]*types.Whiteli
 			return nil, err
 		}
 
-		requests = append(requests, &request)
+		requests = append(requests, request)
 	}
 	return requests, nil
 }

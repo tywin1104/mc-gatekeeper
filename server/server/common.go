@@ -54,7 +54,7 @@ func (svc *Service) updateRequestByID(requestID string, reqBody []byte, admin st
 }
 
 // Get request object from db by encrypted and url-encoded request ID
-func (svc *Service) getRequestByEncryptedID(requestIDEncoded string) (*types.WhitelistRequest, int, error) {
+func (svc *Service) getRequestByEncryptedID(requestIDEncoded string) (types.WhitelistRequest, int, error) {
 	log := svc.logger
 	requestID, err := utils.DecodeAndDecrypt(requestIDEncoded, viper.GetString("passphrase"))
 	if err != nil {
@@ -62,7 +62,7 @@ func (svc *Service) getRequestByEncryptedID(requestIDEncoded string) (*types.Whi
 			"err":      err.Error(),
 			"urlParam": requestIDEncoded,
 		}).Warn("Unable to decode requestID token")
-		return nil, http.StatusBadRequest, errors.New("Unable to decode token")
+		return types.WhitelistRequest{}, http.StatusBadRequest, errors.New("Unable to decode token")
 	}
 
 	_id, _ := primitive.ObjectIDFromHex(string(requestID))
@@ -72,10 +72,10 @@ func (svc *Service) getRequestByEncryptedID(requestIDEncoded string) (*types.Whi
 			"err":       err.Error(),
 			"requestID": requestID,
 		}).Error("Unable to get reqeuest by ID")
-		return nil, http.StatusInternalServerError, errors.New("Unable to get reqeuest by ID")
+		return types.WhitelistRequest{}, http.StatusInternalServerError, errors.New("Unable to get reqeuest by ID")
 	}
 	if len(requests) == 0 {
-		return nil, http.StatusBadRequest, errors.New("Resource not found")
+		return types.WhitelistRequest{}, http.StatusBadRequest, errors.New("Resource not found")
 	}
 	request := requests[0]
 	return request, http.StatusOK, nil
