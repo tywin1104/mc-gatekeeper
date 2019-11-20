@@ -184,7 +184,7 @@ func (worker *Worker) processNewRequest(d amqp.Delivery, request types.Whitelist
 	// Send application confirmation email to user
 	worker.emailConfirmation(request)
 	// Send approval request emails to op(s)
-	successCount, err := worker.emailToOps(request, 1)
+	successCount, err := worker.emailToOps(request, viper.GetInt("minRequiredReceiver"))
 	if err != nil {
 		// If success count for sending ops emails less than minimum quoram, put to dead letter queue
 		worker.logger.WithFields(logrus.Fields{
@@ -209,10 +209,10 @@ func (worker *Worker) emailDecision(whitelistRequest types.WhitelistRequest) err
 	var subject string
 	var template string
 	if whitelistRequest.Status == "Approved" {
-		subject = "Your request to join the server is approved"
+		subject = viper.GetString("approvedEmailTitle")
 		template = "./mailer/templates/approve.html"
 	} else {
-		subject = "Update regarding your request to join the server"
+		subject = viper.GetString("deniedEmailTitle")
 		template = "./mailer/templates/deny.html"
 	}
 	err = mailer.Send(template, map[string]string{"link": requestIDToken}, subject, whitelistRequest.Email)
@@ -232,7 +232,7 @@ func (worker *Worker) emailDecision(whitelistRequest types.WhitelistRequest) err
 
 func (worker *Worker) emailConfirmation(whitelistRequest types.WhitelistRequest) error {
 	log := worker.logger
-	subject := "Your request to join the server has been received"
+	subject := viper.GetString("confirmationEmailTitle")
 	requestIDToken, err := utils.EncodeAndEncrypt(whitelistRequest.ID.Hex(), viper.GetString("passphrase"))
 	if err != nil {
 		log.WithFields(logrus.Fields{

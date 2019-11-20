@@ -7,6 +7,7 @@ import AuthService from '../service/AuthService';
 import Recaptcha from 'react-google-invisible-recaptcha';
 import RecaptchaService from '../service/RecaptchaService'
 import { Redirect } from 'react-router-dom'
+import i18next from "i18next";
 
 const RECAPTCHA_SITEKEY = window.RECAPTCHA_SITEKEY ? window.RECAPTCHA_SITEKEY : process.env.REACT_APP_RECAPTCHA_SITEKEY;
 console.log(RECAPTCHA_SITEKEY)
@@ -75,14 +76,14 @@ class Login extends React.Component {
                 {this.renderRedirect()}
             <React.Fragment>
                 <Container maxWidth="sm">
-                    <Typography variant="h4" style={styles.center}>Login</Typography>
+                    <Typography variant="h4" style={styles.center}>{i18next.t('Login.Title')}</Typography>
                     <form onSubmit={this.login}>
                         <Typography variant="h4" style={styles.notification}>{this.state.message}</Typography>
-                        <TextField type="text" label="USERNAME" fullWidth margin="normal" name="username" value={this.state.username} onChange={this.onChange} required/>
+                        <TextField type="text" label={i18next.t('Login.Username')} fullWidth margin="normal" name="username" value={this.state.username} onChange={this.onChange} required/>
 
-                        <TextField type="password" label="PASSWORD" fullWidth margin="normal" name="password" value={this.state.password} onChange={this.onChange} required/>
+                        <TextField type="password" label={i18next.t('Login.Password')} fullWidth margin="normal" name="password" value={this.state.password} onChange={this.onChange} required/>
 
-                        <Button variant="contained" color="secondary" type="submit">Login</Button>
+                        <Button variant="contained" color="secondary" type="submit">{i18next.t('Login.Button')}</Button>
                     </form>
                     <Recaptcha
                     ref={ ref => this.recaptcha = ref }
