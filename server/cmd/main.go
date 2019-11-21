@@ -26,7 +26,7 @@ func main() {
 	// Set up logrus logger
 	// log.SetFormatter(&logrus.JSONFormatter{})
 	log.SetOutput(os.Stdout)
-	log.SetLevel(logrus.InfoLevel)
+	log.SetLevel(logrus.DebugLevel)
 
 	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
@@ -60,20 +60,11 @@ func main() {
 	}).Info("Mongodb connection established")
 
 	dbSvc := db.NewService(client)
-	conn, err := amqp.Dial(viper.GetString("rabbitMQConn"))
-	if err != nil {
-		log.Fatal("Unable to connect to rabbitmq: " + err.Error())
-	}
-	log.WithFields(logrus.Fields{
-		"addr": strings.Split(viper.GetString("rabbitMQConn"), "@")[1],
-	}).Info("RabbitMQ connection established")
 
-	defer conn.Close()
-	broker, err := broker.NewService(conn, viper.GetString("taskQueueName"))
-	if err != nil {
-		log.Fatal("Unable to setup broker: " + err.Error())
-	}
-	defer broker.Channel.Close()
+	broker := broker.NewService(log, make(chan *amqp.Error))
+	// Watch for unexpected connection loss to rabbitMQ and re-establish connection
+	go broker.WatchForReconnect()
+	defer broker.Close()
 
 	wg := sync.WaitGroup{}
 	wg.Add(2)

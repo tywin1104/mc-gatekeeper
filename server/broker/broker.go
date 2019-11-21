@@ -4,23 +4,97 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"strings"
+	"time"
 
+	"github.com/sirupsen/logrus"
+
+	"github.com/spf13/viper"
 	"github.com/streadway/amqp"
 	"github.com/tywin1104/mc-whitelist/types"
+	try "gopkg.in/matryer/try.v1"
 )
 
 // Service represents broker(message queue) service
 type Service struct {
-	conn    *amqp.Connection
-	Channel *amqp.Channel
-	queue   amqp.Queue
+	conn             *amqp.Connection
+	channel          *amqp.Channel
+	log              *logrus.Logger
+	rabbitCloseError chan *amqp.Error
+}
+
+//WatchForReconnect watch for unexpected connection loss to rabbitMQ and re-establish connection
+func (s *Service) WatchForReconnect() {
+	for {
+		rabbitErr := <-s.rabbitCloseError
+		if rabbitErr != nil {
+			s.log.Warning("Broker RabbitMQ connection closed unexpectedly. About to reconnect")
+			s.rabbitCloseError = make(chan *amqp.Error)
+			s.conn.NotifyClose(s.rabbitCloseError)
+
+			// Reconnect to message queue and establish a new channel
+			// From then on, the newly created channel will be used to
+			// do message publishing
+			s.connectToRabbitMQ()
+			err := s.setup()
+			if err != nil {
+				s.log.WithFields(logrus.Fields{
+					"err": err.Error(),
+				}).Fatal("Unable to set up broker")
+			}
+		}
+	}
 }
 
 // NewService set up all thing rabbitMq related
-func NewService(conn *amqp.Connection, queueName string) (*Service, error) {
-	ch, err := conn.Channel()
+func NewService(log *logrus.Logger, rabbitCloseError chan *amqp.Error) *Service {
+	s := new(Service)
+	s.log = log
+	s.rabbitCloseError = rabbitCloseError
+	s.connectToRabbitMQ()
+	err := s.setup()
 	if err != nil {
-		return nil, errors.New("Failed to open a channel")
+		log.WithFields(logrus.Fields{
+			"err": err.Error(),
+		}).Fatal("Unable to set up broker")
+	}
+	s.conn.NotifyClose(rabbitCloseError)
+	return s
+}
+
+// Close connection and channel associated with the broker
+func (s *Service) Close() {
+	s.channel.Close()
+	s.conn.Close()
+}
+
+// Connect to message queue with retries, update conn field
+func (s *Service) connectToRabbitMQ() {
+	err := try.Do(func(attempt int) (bool, error) {
+		s.log.Infof("Trying to connect to RabbitMQ [%d/3]\n", attempt)
+		conn, e := amqp.Dial(viper.GetString("rabbitMQConn"))
+		if e != nil {
+			time.Sleep(5 * time.Second)
+		} else {
+			s.log.WithFields(logrus.Fields{
+				"addr": strings.Split(viper.GetString("rabbitMQConn"), "@")[1],
+			}).Info("RabbitMQ connection established")
+			s.conn = conn
+		}
+		return attempt < 3, e
+	})
+	if err != nil {
+		s.log.WithFields(logrus.Fields{
+			"err": err.Error(),
+		}).Fatal("Unable to connect to rabbitmq")
+	}
+}
+
+// Setup queue declaration and update conn property
+func (s *Service) setup() error {
+	ch, err := s.conn.Channel()
+	if err != nil {
+		return errors.New("Failed to open a channel")
 	}
 
 	args := make(amqp.Table)
@@ -40,7 +114,7 @@ func NewService(conn *amqp.Connection, queueName string) (*Service, error) {
 		nil,              // arguments
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// Declare the dead letter queue
 	_, err = ch.QueueDeclare(
@@ -52,7 +126,7 @@ func NewService(conn *amqp.Connection, queueName string) (*Service, error) {
 		nil,                 // arguments
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// Bind dead letter exchange to dead letter queue
 	err = ch.QueueBind(
@@ -63,25 +137,22 @@ func NewService(conn *amqp.Connection, queueName string) (*Service, error) {
 		nil,
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	q, err := ch.QueueDeclare(
-		queueName, // name
-		true,      // durable
-		false,     // delete when unused
-		false,     // exclusive
-		false,     // no-wait
-		args,      // arguments
+	_, err = ch.QueueDeclare(
+		viper.GetString("taskQueueName"), // name
+		true,                             // durable
+		false,                            // delete when unused
+		false,                            // exclusive
+		false,                            // no-wait
+		args,                             // arguments
 	)
 	if err != nil {
-		return nil, errors.New("Failed to declare the queue")
+		return errors.New("Failed to declare the queue")
 	}
-	return &Service{
-		conn:    conn,
-		Channel: ch,
-		queue:   q,
-	}, nil
+	s.channel = ch
+	return nil
 }
 
 // Publish a whitelistRequest message for the queue to consume
@@ -90,10 +161,10 @@ func (s *Service) Publish(message types.WhitelistRequest) error {
 	if err != nil {
 		return err
 	}
-	err = s.Channel.Publish(
-		"",           // exchange
-		s.queue.Name, // routing key
-		false,        // mandatory
+	err = s.channel.Publish(
+		"",                               // exchange
+		viper.GetString("taskQueueName"), // routing key
+		false,                            // mandatory
 		false,
 		amqp.Publishing{
 			DeliveryMode: amqp.Persistent,
