@@ -12,7 +12,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/urfave/negroni"
 
@@ -37,6 +36,8 @@ var newRequest3 *types.WhitelistRequest
 var newRequest4 *types.WhitelistRequest
 var newRequest5 *types.WhitelistRequest
 
+var log = logrus.New()
+
 func TestMain(m *testing.M) {
 	// Mock the main application using the test configuration file
 	viper.SetConfigName("config_test")
@@ -52,7 +53,7 @@ func TestMain(m *testing.M) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	fmt.Println(viper.GetString("mongodbConn"))
+
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(viper.GetString("mongodbConn")))
 	if err != nil {
 		log.Fatal(err)
@@ -61,17 +62,9 @@ func TestMain(m *testing.M) {
 	client.Database("mc-whitelist").Collection("requests").DeleteMany(context.TODO(), bson.M{})
 
 	dbSvc := db.NewService(client)
-	conn, err := amqp.Dial(viper.GetString("rabbitMQConn"))
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	defer conn.Close()
-	broker, err := broker.NewService(conn, viper.GetString("taskQueueName"))
-	if err != nil {
-		log.Fatal("Unable to setup broker: " + err.Error())
-	}
-	defer broker.Channel.Close()
+	broker := broker.NewService(log, make(chan *amqp.Error))
+	defer broker.Close()
 	serverLogger := log.WithField("origin", "server")
 	s = server.NewService(dbSvc, broker, serverLogger)
 

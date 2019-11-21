@@ -23,6 +23,13 @@ type Service struct {
 	rabbitCloseError chan *amqp.Error
 }
 
+func (s *Service) GetConn() *amqp.Connection {
+	return s.conn
+}
+func (s *Service) GetChannel() *amqp.Channel {
+	return s.channel
+}
+
 //WatchForReconnect watch for unexpected connection loss to rabbitMQ and re-establish connection
 func (s *Service) WatchForReconnect() {
 	for {
@@ -163,16 +170,23 @@ func (s *Service) Publish(message types.WhitelistRequest) error {
 	if err != nil {
 		return err
 	}
-	err = s.channel.Publish(
-		"",                               // exchange
-		viper.GetString("taskQueueName"), // routing key
-		false,                            // mandatory
-		false,
-		amqp.Publishing{
-			DeliveryMode: amqp.Persistent,
-			ContentType:  "application/json",
-			Body:         []byte(encodedMessage),
-		})
+
+	err = try.Do(func(attempt int) (bool, error) {
+		if attempt > 1 {
+			s.log.Infof("Trying to publish message to broker [%d/3]\n", attempt)
+		}
+		e := s.channel.Publish(
+			"",                               // exchange
+			viper.GetString("taskQueueName"), // routing key
+			false,                            // mandatory
+			false,
+			amqp.Publishing{
+				DeliveryMode: amqp.Persistent,
+				ContentType:  "application/json",
+				Body:         []byte(encodedMessage),
+			})
+		return attempt < 3, e
+	})
 	return err
 }
 

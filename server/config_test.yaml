@@ -1,3 +1,4 @@
+environment: test
 mongodbConn: mongodb://localhost:27017
 rabbitMQConn: "amqp://guest:guest@localhost:5672/"
 taskQueueName: "whitelist.request.queue"

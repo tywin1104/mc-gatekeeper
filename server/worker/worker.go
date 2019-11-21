@@ -33,17 +33,24 @@ type Worker struct {
 }
 
 // NewWorker creates a worker to constantly listen and handle messages in the queue
-func NewWorker(db *db.Service, logger *logrus.Entry) (*Worker, error) {
+func NewWorker(db *db.Service, logger *logrus.Entry, rabbitCloseError chan *amqp.Error) (*Worker, error) {
 	// Initialize rcon client to interact with game server
-	rconClient, err := rcon.NewClient(viper.GetString("RCONServer"), viper.GetInt("RCONPort"), viper.GetString("RCONPassword"))
-	if err != nil {
-		return nil, err
+	var rconClient *rcon.Client
+	if viper.GetString("environment") == "test" {
+		// For testing environment do not connect to a running game server
+		rconClient = nil
+	} else {
+		var err error
+		rconClient, err = rcon.NewClient(viper.GetString("RCONServer"), viper.GetInt("RCONPort"), viper.GetString("RCONPassword"))
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &Worker{
 		dbService:        db,
 		logger:           logger,
 		rconClient:       rconClient,
-		rabbitCloseError: make(chan *amqp.Error),
+		rabbitCloseError: rabbitCloseError,
 	}, nil
 }
 
@@ -53,6 +60,13 @@ func (worker *Worker) failOnError(err error, msg string) {
 			"err": err,
 		}).Fatal(msg)
 	}
+}
+
+func (w *Worker) GetConn() *amqp.Connection {
+	return w.conn
+}
+func (w *Worker) GetChannel() *amqp.Channel {
+	return w.channel
 }
 
 // Close connection and channel associated with the worker
@@ -65,10 +79,13 @@ func (worker *Worker) Close() {
 func (worker *Worker) Start(wg *sync.WaitGroup) {
 	log := worker.logger
 
+	// Start will only perform initial setup
+	// If in the future the initial connection got closed,
+	// reconnect callback function will be executed and conn/chan/chan *Error will be reset
 	conn, err := amqp.Dial(viper.GetString("rabbitMQConn"))
 	worker.failOnError(err, "Failed to connect to RabbitMQ")
 	worker.conn = conn
-	worker.rabbitCloseError = worker.conn.NotifyClose(make(chan *amqp.Error))
+	worker.conn.NotifyClose(worker.rabbitCloseError)
 
 	ch, err := conn.Channel()
 	worker.failOnError(err, "Failed to open a channel")
@@ -125,12 +142,26 @@ func (worker *Worker) updateDeliveryChannel() {
 func (worker *Worker) reconnect() {
 	worker.logger.Warning("Worker connection with message queue closed unexpectedly. About to reconnect")
 	worker.rabbitCloseError = make(chan *amqp.Error)
+	err := try.Do(func(attempt int) (bool, error) {
+		if attempt > 1 {
+			worker.logger.Infof("Trying to connect to RabbitMQ [%d/3]\n", attempt)
+		}
+		var e error
+		conn, e := amqp.Dial(viper.GetString("rabbitMQConn"))
+		if e != nil {
+			time.Sleep(5 * time.Second)
+		} else {
+			worker.conn = conn
+		}
+		return attempt < 3, e
+	})
+	if err != nil {
+		worker.logger.WithFields(logrus.Fields{
+			"err": err.Error(),
+		}).Fatal("Unable to reconnect to message queue")
+	}
 
-	conn, err := amqp.Dial(viper.GetString("rabbitMQConn"))
-	worker.failOnError(err, "Failed to connect to RabbitMQ")
-	worker.conn = conn
-
-	ch, err := conn.Channel()
+	ch, err := worker.conn.Channel()
 	worker.failOnError(err, "Failed to open a channel")
 	worker.channel = ch
 	// Update worker's delivery from newly created channel of new connection
@@ -148,6 +179,9 @@ func (worker *Worker) runLoop() {
 			break
 		case d := <-worker.delivery:
 			log := worker.logger
+			if d.Body == nil {
+				break
+			}
 			whitelistRequest, err := deserialize(d.Body)
 			if err != nil {
 				log.WithFields(logrus.Fields{

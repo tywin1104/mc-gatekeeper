@@ -70,7 +70,7 @@ func main() {
 	wg.Add(2)
 	// Start the worker
 	workerLogger := log.WithField("origin", "worker")
-	worker, err := worker.NewWorker(dbSvc, workerLogger)
+	worker, err := worker.NewWorker(dbSvc, workerLogger, make(chan *amqp.Error))
 	if err != nil {
 		log.Fatal("Unable to start worker: " + err.Error())
 	}
