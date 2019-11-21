@@ -75,7 +75,7 @@ func waitForHTTPServer(wg *sync.WaitGroup, port, endpoint string, log *logrus.En
 		resp, err := client.Get(fmt.Sprintf("http://localhost:%s/%s", port, endpoint))
 		if err == nil && resp != nil && resp.StatusCode == 200 {
 			wg.Done()
-			log.WithField("port", port).Infof("Http server is up and healthy")
+			log.WithField("port", port).Infof("API server is up and healthy")
 			break
 		}
 	}

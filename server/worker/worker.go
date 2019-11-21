@@ -23,9 +23,13 @@ import (
 
 // Worker defines message queue worker
 type Worker struct {
-	dbService  *db.Service
-	logger     *logrus.Entry
-	rconClient *rcon.Client
+	dbService        *db.Service
+	logger           *logrus.Entry
+	rconClient       *rcon.Client
+	conn             *amqp.Connection
+	channel          *amqp.Channel
+	rabbitCloseError chan *amqp.Error
+	delivery         <-chan amqp.Delivery
 }
 
 // NewWorker creates a worker to constantly listen and handle messages in the queue
@@ -36,9 +40,10 @@ func NewWorker(db *db.Service, logger *logrus.Entry) (*Worker, error) {
 		return nil, err
 	}
 	return &Worker{
-		dbService:  db,
-		logger:     logger,
-		rconClient: rconClient,
+		dbService:        db,
+		logger:           logger,
+		rconClient:       rconClient,
+		rabbitCloseError: make(chan *amqp.Error),
 	}, nil
 }
 
@@ -50,25 +55,31 @@ func (worker *Worker) failOnError(err error, msg string) {
 	}
 }
 
+// Close connection and channel associated with the worker
+func (worker *Worker) Close() {
+	worker.channel.Close()
+	worker.conn.Close()
+}
+
 // Start the worker to process the messages pushed into the queue
 func (worker *Worker) Start(wg *sync.WaitGroup) {
 	log := worker.logger
 
 	conn, err := amqp.Dial(viper.GetString("rabbitMQConn"))
 	worker.failOnError(err, "Failed to connect to RabbitMQ")
-	defer conn.Close()
+	worker.conn = conn
+	worker.rabbitCloseError = worker.conn.NotifyClose(make(chan *amqp.Error))
 
 	ch, err := conn.Channel()
 	worker.failOnError(err, "Failed to open a channel")
-	defer ch.Close()
-
+	worker.channel = ch
 	args := make(amqp.Table)
 	// Dead letter exchange name
 	args["x-dead-letter-exchange"] = "dead.letter.ex"
 	// Default message ttl 24 hours
 	args["x-message-ttl"] = int32(8.64e+7)
 
-	q, err := ch.QueueDeclare(
+	_, err = ch.QueueDeclare(
 		viper.GetString("taskQueueName"), // name
 		true,                             // durable
 		false,                            // delete when unused
@@ -85,46 +96,77 @@ func (worker *Worker) Start(wg *sync.WaitGroup) {
 	)
 	worker.failOnError(err, "Failed to set QoS")
 
-	msgs, err := ch.Consume(
-		q.Name, // queue
-		"",     // consumer
-		false,  // auto-ack
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
-	)
-	worker.failOnError(err, "Failed to register a consumer")
-
 	forever := make(chan bool)
-	go worker.runLoop(msgs)
+	// Set initial delivery channel from the initial connection
+	worker.updateDeliveryChannel()
+	go worker.runLoop()
 	log.Info("Worker started. Listening for messages..")
 	wg.Done()
 
 	<-forever
 }
 
-func (worker *Worker) runLoop(msgs <-chan amqp.Delivery) {
-	log := worker.logger
-	for d := range msgs {
-		whitelistRequest, err := deserialize(d.Body)
-		if err != nil {
-			log.WithFields(logrus.Fields{
-				"messageBody": d.Body,
-				"err":         err,
-			}).Error("Unable to decode message into whitelistRequest")
-			// Unable to decode this message, put to the dead-letter queue
-			d.Nack(false, false)
-		} else {
-			// Concrete actions to do when receiving task from message queue
-			// From the message body to determine which type of work to do
-			switch whitelistRequest.Status {
-			case "Approved":
-				worker.processApproval(d, whitelistRequest)
-			case "Denied":
-				worker.processDenial(d, whitelistRequest)
-			case "Pending":
-				worker.processNewRequest(d, whitelistRequest)
+// Update the messages fetching origin to be from the channel of the new connection
+// Is called whenver a new connection is established and the old one is closed
+func (worker *Worker) updateDeliveryChannel() {
+	msgs, err := worker.channel.Consume(
+		viper.GetString("taskQueueName"), // queue
+		"",                               // consumer
+		false,                            // auto-ack
+		false,                            // exclusive
+		false,                            // no-local
+		false,                            // no-wait
+		nil,                              // args
+	)
+	worker.failOnError(err, "Failed to register a consumer")
+	worker.delivery = msgs
+}
+
+func (worker *Worker) reconnect() {
+	worker.logger.Warning("Worker connection with message queue closed unexpectedly. About to reconnect")
+	worker.rabbitCloseError = make(chan *amqp.Error)
+
+	conn, err := amqp.Dial(viper.GetString("rabbitMQConn"))
+	worker.failOnError(err, "Failed to connect to RabbitMQ")
+	worker.conn = conn
+
+	ch, err := conn.Channel()
+	worker.failOnError(err, "Failed to open a channel")
+	worker.channel = ch
+	// Update worker's delivery from newly created channel of new connection
+	worker.updateDeliveryChannel()
+	worker.logger.Info("Worker-message queue connection established. Continue to process messages")
+	worker.conn.NotifyClose(worker.rabbitCloseError)
+}
+func (worker *Worker) runLoop() {
+	for {
+		select {
+		case rabbitErr := <-worker.rabbitCloseError:
+			if rabbitErr != nil {
+				worker.reconnect()
+			}
+			break
+		case d := <-worker.delivery:
+			log := worker.logger
+			whitelistRequest, err := deserialize(d.Body)
+			if err != nil {
+				log.WithFields(logrus.Fields{
+					"messageBody": d.Body,
+					"err":         err,
+				}).Error("Unable to decode message into whitelistRequest")
+				// Unable to decode this message, put to the dead-letter queue
+				d.Nack(false, false)
+			} else {
+				// Concrete actions to do when receiving task from message queue
+				// From the message body to determine which type of work to do
+				switch whitelistRequest.Status {
+				case "Approved":
+					worker.processApproval(d, whitelistRequest)
+				case "Denied":
+					worker.processDenial(d, whitelistRequest)
+				case "Pending":
+					worker.processNewRequest(d, whitelistRequest)
+				}
 			}
 		}
 	}

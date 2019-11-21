@@ -75,6 +75,7 @@ func main() {
 		log.Fatal("Unable to start worker: " + err.Error())
 	}
 	go worker.Start(&wg)
+	defer worker.Close()
 	// Setup and start the http REST API server
 	serverLogger := log.WithField("origin", "server")
 	httpServer := server.NewService(dbSvc, broker, serverLogger)

@@ -28,14 +28,14 @@ func (s *Service) WatchForReconnect() {
 	for {
 		rabbitErr := <-s.rabbitCloseError
 		if rabbitErr != nil {
-			s.log.Warning("Broker RabbitMQ connection closed unexpectedly. About to reconnect")
+			s.log.Warning("Broker connection with message queue closed unexpectedly. About to reconnect")
 			s.rabbitCloseError = make(chan *amqp.Error)
-			s.conn.NotifyClose(s.rabbitCloseError)
 
 			// Reconnect to message queue and establish a new channel
 			// From then on, the newly created channel will be used to
 			// do message publishing
 			s.connectToRabbitMQ()
+			s.conn.NotifyClose(s.rabbitCloseError)
 			err := s.setup()
 			if err != nil {
 				s.log.WithFields(logrus.Fields{
@@ -71,14 +71,16 @@ func (s *Service) Close() {
 // Connect to message queue with retries, update conn field
 func (s *Service) connectToRabbitMQ() {
 	err := try.Do(func(attempt int) (bool, error) {
-		s.log.Infof("Trying to connect to RabbitMQ [%d/3]\n", attempt)
+		if attempt > 1 {
+			s.log.Infof("Trying to connect to RabbitMQ [%d/3]\n", attempt)
+		}
 		conn, e := amqp.Dial(viper.GetString("rabbitMQConn"))
 		if e != nil {
 			time.Sleep(5 * time.Second)
 		} else {
 			s.log.WithFields(logrus.Fields{
 				"addr": strings.Split(viper.GetString("rabbitMQConn"), "@")[1],
-			}).Info("RabbitMQ connection established")
+			}).Info("Broker-message queue connection established")
 			s.conn = conn
 		}
 		return attempt < 3, e
