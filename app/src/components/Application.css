@@ -1,11 +1,11 @@
 form {
-    font-size: 100%;
+  font-size: 100%;
 }
 
 form button {
-    margin-top: 2%;
+  margin-top: 2%;
 }
 
 .application-jumbotron {
-    background-image: url("../assets/background.jpg");
+  background-image: url("../assets/background.jpg");
 }

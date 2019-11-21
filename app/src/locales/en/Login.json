@@ -1,6 +1,6 @@
 {
-    "Title": "Management Dashboard Login",
-    "Username": "Username",
-    "Password":"Password",
-    "Button": "Login"
+  "Title": "Management Dashboard Login",
+  "Username": "Username",
+  "Password": "Password",
+  "Button": "Login"
 }

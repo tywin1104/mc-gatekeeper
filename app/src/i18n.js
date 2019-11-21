@@ -5,8 +5,8 @@ import enTranslations from "./locales/en";
 import zhTranslations from "./locales/zh";
 
 const resources = {
-  en: {translations: enTranslations},
-  zh: {translations: zhTranslations}
+  en: { translations: enTranslations },
+  zh: { translations: zhTranslations }
 };
 
 i18n
@@ -14,10 +14,10 @@ i18n
   .use(initReactI18next)
   .init({
     react: {
-      wait: true,
+      wait: true
     },
     resources: resources,
-    lng: 'en',
+    lng: "en",
     fallbackLng: "en",
     debug: true,
 
@@ -25,11 +25,11 @@ i18n
     ns: ["translations"],
     defaultNS: "translations",
 
-    keySeparator: '.',
+    keySeparator: ".",
     interpolation: {
       escapeValue: false
     },
-    fallbackNS: [],
+    fallbackNS: []
   });
 
 export default i18n;

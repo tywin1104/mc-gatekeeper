@@ -1,6 +1,6 @@
 {
-    "Title": "管理员控制面板登陆",
-    "Username": "用户名",
-    "Password":"密码",
-    "Button": "登陆"
+  "Title": "管理员控制面板登陆",
+  "Username": "用户名",
+  "Password": "密码",
+  "Button": "登陆"
 }

@@ -1,31 +1,29 @@
 {
-    "Title": "控制面板",
-    "Chart": {
-        "Title": "新的申请",
-        "Count": "数量"
-
-    },
-    "Stats": {
-        "Pending": "待审核的申请",
-        "Fulfilled": "处理完的申请",
-        "ResponseTime": "平均处理时间"
-
-    },
-    "Table": {
-        "OperationErrMsg": "服务器内部错误",
-        "ApproveTooltip": "批准",
-        "DenyTooltip": "拒绝",
-        "Note": "管理员备注: ",
-        "ApplicationText": "申请信息: ",
-        "AllRequests": "所有申请",
-        "ID": "ID",
-        "Username": "用户名",
-        "Email": "电子邮箱",
-        "Submitted": "申请提交时间",
-        "Status": "状态",
-        "Processed": "申请处理时间",
-        "Admin": "处理者",
-        "Assignees": "委任处理人员",
-        "Actions": "执行操作"
-    }
+  "Title": "控制面板",
+  "Chart": {
+    "Title": "新的申请",
+    "Count": "数量"
+  },
+  "Stats": {
+    "Pending": "待审核的申请",
+    "Fulfilled": "处理完的申请",
+    "ResponseTime": "平均处理时间"
+  },
+  "Table": {
+    "OperationErrMsg": "服务器内部错误",
+    "ApproveTooltip": "批准",
+    "DenyTooltip": "拒绝",
+    "Note": "管理员备注: ",
+    "ApplicationText": "申请信息: ",
+    "AllRequests": "所有申请",
+    "ID": "ID",
+    "Username": "用户名",
+    "Email": "电子邮箱",
+    "Submitted": "申请提交时间",
+    "Status": "状态",
+    "Processed": "申请处理时间",
+    "Admin": "处理者",
+    "Assignees": "委任处理人员",
+    "Actions": "执行操作"
+  }
 }

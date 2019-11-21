@@ -1,12 +1,12 @@
 {
-    "Title": "Your Application Status",
-    "Username": "Username",
-    "Email": "Email",
-    "Status": "Status",
-    "Submitted": "Application submitted",
-    "ReferenceID": "Reference ID",
-    "Message": "If you haven't heard from us within 24 hours, please contact us with your application ID above for reference",
-    "Pending": "Pending",
-    "Approved": "Approved",
-    "Denied": "Denied"
+  "Title": "Your Application Status",
+  "Username": "Username",
+  "Email": "Email",
+  "Status": "Status",
+  "Submitted": "Application submitted",
+  "ReferenceID": "Reference ID",
+  "Message": "If you haven't heard from us within 24 hours, please contact us with your application ID above for reference",
+  "Pending": "Pending",
+  "Approved": "Approved",
+  "Denied": "Denied"
 }
