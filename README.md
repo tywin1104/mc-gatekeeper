@@ -1,26 +1,23 @@
-<!--
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
- -->
-
 [![LinkedIn][linkedin-shield]][linkedin-url]
 
 <!-- PROJECT LOGO -->
 <br />
 <p align="center">
   <a href="https://github.com/tywin1104/minecraft-gatekeeper">
-    <img src="images/logo.png" alt="Logo" width="80" height="80">
+    <img src="images/gatekeeper.png" alt="Logo" >
   </a>
 
-  <h3 align="center">Minecraft GateKeeper</h3>
+  <h1 align="center">Minecraft GateKeeper</h1>
 
-  <p align="center">
+  <h3 align="center">
     An all-in-one reliable whitelist application system for your Minecraft server
     <br />
     ·
     <a href="https://github.com/tywin1104/minecraft-gatekeeper/issues">Request Feature</a>
-  </p>
+  </h3>
 </p>
 
 <!-- TABLE OF CONTENTS -->
@@ -151,16 +148,12 @@ Tianyi Zhang - tiaven1104@gmail.com
 - [MongoDB](https://www.mongodb.com/)
 
 <!-- MARKDOWN LINKS & IMAGES -->
-<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-<!--
-[stars-shield]: https://img.shields.io/github/stars/othneildrew/Best-README-Template.svg?style=flat-square
-[stars-url]: https://github.com/othneildrew/Best-README-Template/stargazers
-[issues-shield]: https://img.shields.io/github/issues/othneildrew/Best-README-Template.svg?style=flat-square
-[issues-url]: https://github.com/othneildrew/Best-README-Template/issues
 
-[license-shield]: https://img.shields.io/github/license/othneildrew/Best-README-Template.svg?style=flat-square
-[license-url]: https://github.com/othneildrew/Best-README-Template/blob/master/LICENSE
--->
-
+[stars-shield]: https://img.shields.io/github/stars/tywin1104/minecraft-whitelist.svg?style=flat-square
+[stars-url]: https://github.com/tywin1104/minecraft-whitelist/stargazers
+[issues-shield]: https://img.shields.io/github/issues/tywin1104/minecraft-whitelist.svg?style=flat-square
+[issues-url]: https://github.com/tywin1104/minecraft-whitelist/issues
+[license-shield]: https://img.shields.io/github/license/tywin1104/minecraft-whitelist.svg?style=flat-square
+[license-url]: https://github.com/tywin1104/minecraft-whitelist/blob/master/LICENSE
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=flat-square&logo=linkedin&colorB=555
 [linkedin-url]: https://www.linkedin.com/in/tywinzhang/
