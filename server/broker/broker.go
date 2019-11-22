@@ -11,7 +11,7 @@ import (
 
 	"github.com/spf13/viper"
 	"github.com/streadway/amqp"
-	"github.com/tywin1104/mc-whitelist/types"
+	"github.com/tywin1104/mc-gatekeeper/types"
 	try "gopkg.in/matryer/try.v1"
 )
 

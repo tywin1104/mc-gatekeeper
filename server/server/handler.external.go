@@ -9,8 +9,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/tywin1104/mc-whitelist/types"
-	"github.com/tywin1104/mc-whitelist/utils"
+	"github.com/tywin1104/mc-gatekeeper/types"
+	"github.com/tywin1104/mc-gatekeeper/utils"
 	"go.mongodb.org/mongo-driver/bson"
 )
 

@@ -11,8 +11,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"github.com/sirupsen/logrus"
-	"github.com/tywin1104/mc-whitelist/broker"
-	"github.com/tywin1104/mc-whitelist/db"
+	"github.com/tywin1104/mc-gatekeeper/broker"
+	"github.com/tywin1104/mc-gatekeeper/db"
 )
 
 // Service represents struct that deals with database level operations

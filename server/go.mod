@@ -1,4 +1,4 @@
-module github.com/tywin1104/mc-whitelist
+module github.com/tywin1104/mc-gatekeeper
 
 go 1.12
 

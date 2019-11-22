@@ -7,7 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/streadway/amqp"
-	"github.com/tywin1104/mc-whitelist/broker"
+	"github.com/tywin1104/mc-gatekeeper/broker"
 )
 
 var log = logrus.New()

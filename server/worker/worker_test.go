@@ -9,8 +9,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/streadway/amqp"
-	"github.com/tywin1104/mc-whitelist/db"
-	"github.com/tywin1104/mc-whitelist/worker"
+	"github.com/tywin1104/mc-gatekeeper/db"
+	"github.com/tywin1104/mc-gatekeeper/worker"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
