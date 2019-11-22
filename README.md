@@ -16,7 +16,7 @@
     An all-in-one reliable whitelist application system for your Minecraft server
     <br />
     ·
-    <a href="https://github.com/tywin1104/minecraft-gatekeeper/issues">Request Feature</a>
+    <a href="https://github.com/tywin1104/minecraft-whitelist/issues">Request Feature</a>
   </h3>
 </p>
 
@@ -54,6 +54,8 @@ What's provided out of the box:
 - Management and monitoring dashboard for the server owner
 - Rich configuration and customization options (see below)
 - Multi-language support with builtin Chinese translation
+
+On top of these, it is implemented with security(encryotion; private endpoints token-based authentication) and fault-torlance(retry operations; message queue connection recovery mechaism) in mind.
 
 ## Workflows With Screenshots:
 
@@ -125,7 +127,7 @@ Here are some possible trivial custimizations that could be done that fits your 
 
 ## Feature Requests
 
-Please open a issue to request a feature or make a contack directly
+Please open a issue to request a feature or make a contact directly
 
 ## License
 
