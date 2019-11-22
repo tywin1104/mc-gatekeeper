@@ -1,0 +1,45 @@
+# The server support live-configuration change. No need to restart server. But make sure the format and values are valid
+
+# *MongoDB connection string. Check out service such as https://www.mongodb.com/cloud/atlas for fully-managed mongodb solution
+mongodbConn: mongodb+srv://...
+# *RabbitMQ connection string. Check out service such as https://www.cloudamqp.com/ for fully-managed rabbitMQ solution
+rabbitMQConn: amqp://....
+# Message queue name <-- Default value is recommended
+taskQueueName: whitelist.request.queue
+# API server listening port. <-- Default value is recommended
+port: ":8080"
+# *SMTP(Email) related service credentials. Get the following credentials from a SMTP provider
+# For example: mailgun
+SMTPServer:
+SMTPPort:
+SMTPEmail:
+SMTPPassword:
+# *Email addresses for Ops who will handle whitelist applications for your MC server
+ops: ["op1@gmail.com", "op2@gmail.com"]
+# Used for internal encryption and authentication token generation.
+# If using Helm to deploy, these two fields will be automatically set.
+passphrase:
+jwtTokenSecret:
+# *Root username to access management dashboard. Keep it long and secure!
+adminUsername:
+# *Root password to access management dashboard. Keep it long and secure!
+adminPassword:
+# dispatchingStrategy defines how each application will be assigned to available Ops
+# Broadcast will send each Op an action email to handle each application. Whoever make decision first will resolve the application
+# Random will assign each application to [randomDispatchingThreshold] of Ops available.
+# !! randomDispatchingThreshold must be a value not greater than total number of Ops specified above
+dispatchingStrategy: Broadcast
+randomDispatchingThreshold: 1
+# Minimum number of Ops who receive the task to handle each application
+# If the number of action emails that sent successfully are less than the threshold, log should produce an error entry
+minRequiredReceiver: 1
+# *recaptchaPrivateKey. Set up here https://www.google.com/recaptcha/intro/v3.html. [Use V2 Invisible Version]
+recaptchaPrivateKey:
+# *RCON related config. Set these first at your server's server.properties yaml file and paste the values here
+RCONPort: 25575
+RCONServer:
+RCONPassword:
+# *Change these as you wish.
+approvedEmailTitle: Your request to join the server is approved
+deniedEmailTitle: Update regarding your request to join the server
+confirmationEmailTitle: Your request to join the server has been received

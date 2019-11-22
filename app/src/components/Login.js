@@ -12,7 +12,6 @@ import i18next from "i18next";
 const RECAPTCHA_SITEKEY = window.RECAPTCHA_SITEKEY
   ? window.RECAPTCHA_SITEKEY
   : process.env.REACT_APP_RECAPTCHA_SITEKEY;
-console.log(RECAPTCHA_SITEKEY);
 
 class Login extends React.Component {
   constructor(props, context) {
@@ -79,7 +78,7 @@ class Login extends React.Component {
         {this.renderRedirect()}
         <React.Fragment>
           <Container maxWidth="sm">
-            <Typography variant="h4" style={styles.center}>
+            <Typography variant="h5" style={styles.center}>
               {i18next.t("Login.Title")}
             </Typography>
             <form onSubmit={this.login}>
