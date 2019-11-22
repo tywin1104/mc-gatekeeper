@@ -16,7 +16,7 @@
     An all-in-one reliable whitelist application system for your Minecraft server
     <br />
     ·
-    <a href="https://github.com/tywin1104/minecraft-whitelist/issues">Request Feature</a>
+    <a href="https://github.com/tywin1104/mc-gatekeeper/issues">Request Feature</a>
   </h3>
 </p>
 
@@ -151,11 +151,11 @@ Tianyi Zhang - tiaven1104@gmail.com
 
 <!-- MARKDOWN LINKS & IMAGES -->
 
-[stars-shield]: https://img.shields.io/github/stars/tywin1104/minecraft-whitelist.svg?style=flat-square
-[stars-url]: https://github.com/tywin1104/minecraft-whitelist/stargazers
-[issues-shield]: https://img.shields.io/github/issues/tywin1104/minecraft-whitelist.svg?style=flat-square
-[issues-url]: https://github.com/tywin1104/minecraft-whitelist/issues
-[license-shield]: https://img.shields.io/github/license/tywin1104/minecraft-whitelist.svg?style=flat-square
-[license-url]: https://github.com/tywin1104/minecraft-whitelist/blob/master/LICENSE
+[stars-shield]: https://img.shields.io/github/stars/tywin1104/mc-gatekeeper.svg?style=flat-square
+[stars-url]: https://github.com/tywin1104/mc-gatekeeper/stargazers
+[issues-shield]: https://img.shields.io/github/issues/tywin1104/mc-gatekeeper.svg?style=flat-square
+[issues-url]: https://github.com/tywin1104/mc-gatekeeper/issues
+[license-shield]: https://img.shields.io/github/license/tywin1104/mc-gatekeeper.svg?style=flat-square
+[license-url]: https://github.com/tywin1104/mc-gatekeeper/blob/master/LICENSE
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=flat-square&logo=linkedin&colorB=555
 [linkedin-url]: https://www.linkedin.com/in/tywinzhang/
