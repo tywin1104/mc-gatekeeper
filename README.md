@@ -100,6 +100,8 @@ On top of these, it is implemented with security(encryotion; private endpoints t
 
 ## Deployment & Configurations
 
+Walkthrough deployment https://github.com/tywin1104/mc-gatekeeper/wiki/Walk-through-deployment-in-Kubernetes-cluster-with-Helm
+
 The web app part(frontend) is intended to be publicly accessible across the Internet and the backend server API should be consumed only by the client application. A running MongoDB and RabbitMQ instance are required components for the system. Setting up the whole stack manually would be cumbersome. I've provided here a deployment strategy based on Kubernetes clusters and Helm chart. See the `mc-whitelist` directory for chart templates. Once you substitute the values for your setup and have a Kubernetes cluster ready, you could run `helm install` to get the whole application running really quick. Minor changes should be made depending on your cloud provider. You could also optionally add certificate for https setup and configure your domain DNS record to the application. The helm chart does not include the MongoDB and Rabbitmq. You are free to choose from any cloud/on-prem solution for them. See `mc-whitelist/charts/backend/values.yaml` and `mc-whitelist/charts/frontend/values.yaml` for configuration details.
 
 ## Local Dev Setup
