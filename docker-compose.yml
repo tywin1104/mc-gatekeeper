@@ -1,0 +1,75 @@
+version: "2.1"
+
+services:
+  mongo:
+    image: mongo
+    container_name: gatekeeper-mongo
+    restart: always
+    expose:
+      - 27017
+    volumes:
+      - ./.docker/mongodb/mongod.conf:/etc/mongod.conf
+      - ./.docker/mongodb/initdb.d/:/docker-entrypoint-initdb.d/
+      - ./.docker/mongodb/data/db/:/data/db/
+      - ./.docker/mongodb/data/log/:/var/log/mongodb/
+    networks:
+      - "test_network"
+
+  rabbitmq:
+    build:
+      context: ./
+      dockerfile: Dockerfile-rabbitmq
+    container_name: gatekeeper-rabbitmq
+    depends_on:
+      - mongo
+    expose:
+      - 4369
+      - 5672
+      - 15672
+      - 25672
+      - 35197
+    volumes:
+      - ./data:/var/lib/rabbitmq
+      - ./data/logs:/var/log/rabbitmq
+    hostname: rabbit
+    networks:
+      - "test_network"
+    healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:15672"]
+        interval: 10s
+        timeout: 10s
+        retries: 5
+
+  server:
+    build:
+      context: ./server
+    container_name: gatekeeper-server
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    tty: true
+    stdin_open: true
+    expose:
+      - 8080
+    volumes:
+      - './server/config.yaml:/server/config.yaml'
+    environment:
+      - FRONTEND_DEPLOYED_URL=http://localhost:80/
+    networks:
+      - "test_network"
+
+  app:
+    build:
+      context: ./app
+    container_name: gatekeeper-app
+    depends_on:
+      - server
+    ports:
+      - 80:80
+    environment:
+      - RECAPTCHA_SITEKEY=6Ld7qcAUAAAAADtzQrmz7it_EOpygwqSKuC8nY5I
+    networks:
+      - "test_network"
+
+networks:
+  test_network:

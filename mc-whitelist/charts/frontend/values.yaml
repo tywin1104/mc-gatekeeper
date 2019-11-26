@@ -1,7 +1,7 @@
 replicas: 1
 image:
   registry: us.gcr.io/mc-whitelist-demo/mc-whitelist-app
-  tag: c7d8df5
+  tag: 1.0.0
 ingress:
   certificate:  mc-whitelist-ingress-certificate
   static_ip: mc-whitelist-frontend-ingress-ip

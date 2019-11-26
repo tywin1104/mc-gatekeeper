@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -55,9 +54,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Unable to connect to mongodb: " + err.Error())
 	}
-	log.WithFields(logrus.Fields{
-		"addr": strings.Split(viper.GetString("mongodbConn"), "@")[1],
-	}).Info("Mongodb connection established")
+	log.Info("Mongodb connection established")
 
 	dbSvc := db.NewService(client)
 
