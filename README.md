@@ -31,6 +31,7 @@
     - [For Ops:](#for-ops)
     - [For Server Owner:](#for-server-owner)
 - [Deployment & Configurations](#deployment--configurations)
+    - [Deployment using docker-compse](#deployment-using-docker-compse)
 - [Local Dev Setup](#local-dev-setup)
 - [Custimizations](#custimizations)
 - [Feature Requests](#feature-requests)
@@ -100,9 +101,27 @@ On top of these, it is implemented with security(encryotion; private endpoints t
 
 ## Deployment & Configurations
 
-Walkthrough deployment https://github.com/tywin1104/mc-gatekeeper/wiki/Walk-through-deployment-in-Kubernetes-cluster-with-Helm
+For simple deployment, you could follow the steps below using docker compose. I've also provided Helm chart to deploy on Kubernetes cluster for more reliable production use case(advanced). For a brief  walkthrough for Kubernetes deployment please check out the wiki page:
 
-The web app part(frontend) is intended to be publicly accessible across the Internet and the backend server API should be consumed only by the client application. A running MongoDB and RabbitMQ instance are required components for the system. Setting up the whole stack manually would be cumbersome. I've provided here a deployment strategy based on Kubernetes clusters and Helm chart. See the `mc-whitelist` directory for chart templates. Once you substitute the values for your setup and have a Kubernetes cluster ready, you could run `helm install` to get the whole application running really quick. Minor changes should be made depending on your cloud provider. You could also optionally add certificate for https setup and configure your domain DNS record to the application. The helm chart does not include the MongoDB and Rabbitmq. You are free to choose from any cloud/on-prem solution for them. See `mc-whitelist/charts/backend/values.yaml` and `mc-whitelist/charts/frontend/values.yaml` for configuration details.
+ https://github.com/tywin1104/mc-gatekeeper/wiki/Walk-through-deployment-in-Kubernetes-cluster-with-Helm
+
+#### Deployment using docker-compse
+ - Clone the repo onto your workstation / Linux virtual machine(EC2, droplet...)
+ - Make sure `docker` and `docker-compose` is installed on your workstation
+ - Create `config.yaml` inside the `server` directory. Fill in the values according to your setup. (see config_sample.yaml for reference)
+
+   `mongodbConn: mongodb://mongo:27017`
+   `rabbitMQConn: amqp://guest:guest@rabbitmq`
+
+   Keep these two configuration value as above.
+ - Inside `docker-compose.yaml`, change `RECAPTCHA_SITEKEY` to your recaptcha sitekey(v2 invisible)
+ - If you are running in a machine with domain name DNS configured, you need to change `FRONTEND_DEPLOYED_URL` in `docker-compose.yaml` to be your domain address instead of localhost.
+ - run `docker-compose up -d`
+ - Once the process is finished, go to `http://localhost` or your configured domain address to view the application
+
+
+
+**Note**: The web app part (frontend) is intended to be publicly accessible across the Internet and the backend server API should be consumed only by the client application for security reasons. A running MongoDB and RabbitMQ instance are required components for the system.
 
 ## Local Dev Setup
 
