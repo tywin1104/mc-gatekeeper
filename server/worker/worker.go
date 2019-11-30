@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/streadway/amqp"
+	"github.com/tywin1104/mc-gatekeeper/cache"
 	"github.com/tywin1104/mc-gatekeeper/db"
 	"github.com/tywin1104/mc-gatekeeper/mailer"
 	"github.com/tywin1104/mc-gatekeeper/rcon"
@@ -24,6 +25,7 @@ import (
 // Worker defines message queue worker
 type Worker struct {
 	dbService        *db.Service
+	cache            *cache.Service
 	logger           *logrus.Entry
 	rconClient       *rcon.Client
 	conn             *amqp.Connection
@@ -33,7 +35,7 @@ type Worker struct {
 }
 
 // NewWorker creates a worker to constantly listen and handle messages in the queue
-func NewWorker(db *db.Service, logger *logrus.Entry, rabbitCloseError chan *amqp.Error) (*Worker, error) {
+func NewWorker(db *db.Service, cache *cache.Service, logger *logrus.Entry, rabbitCloseError chan *amqp.Error) (*Worker, error) {
 	// Initialize rcon client to interact with game server
 	var rconClient *rcon.Client
 	if viper.GetString("environment") == "test" {
@@ -48,6 +50,7 @@ func NewWorker(db *db.Service, logger *logrus.Entry, rabbitCloseError chan *amqp
 	}
 	return &Worker{
 		dbService:        db,
+		cache:            cache,
 		logger:           logger,
 		rconClient:       rconClient,
 		rabbitCloseError: rabbitCloseError,
@@ -206,6 +209,24 @@ func (worker *Worker) runLoop() {
 	}
 }
 
+func (worker *Worker) updateCache(request types.WhitelistRequest) {
+	// Update the cache. Best effort only
+	err := worker.cache.UpdateAllRequests()
+	if err != nil {
+		worker.logger.WithFields(logrus.Fields{
+			"err": err.Error(),
+		}).Warning("Unable to refresh all requests in cache")
+	}
+
+	// Update Stats value in cache
+	err = worker.cache.UpdateStats(request)
+	if err != nil {
+		worker.logger.WithFields(logrus.Fields{
+			"err": err.Error(),
+		}).Warning("Unable to update stats in cache")
+	}
+}
+
 // Nack if decision email is not sent. Ack if sent.
 func (worker *Worker) processApproval(d amqp.Delivery, request types.WhitelistRequest) {
 	worker.logger.WithFields(logrus.Fields{
@@ -214,6 +235,7 @@ func (worker *Worker) processApproval(d amqp.Delivery, request types.WhitelistRe
 		"Type":     "Approval Task",
 	}).Info("Received new task")
 
+	worker.updateCache(request)
 	// Concrete whitelist action on the game server
 	err := worker.whitelistUser(request.Username)
 	if err != nil {
@@ -241,6 +263,8 @@ func (worker *Worker) processDenial(d amqp.Delivery, request types.WhitelistRequ
 		"ID":       request.ID,
 		"Type":     "Denial Task",
 	}).Info("Received new task")
+
+	worker.updateCache(request)
 	err := worker.emailDecision(request)
 	if err != nil {
 		d.Nack(false, false)
@@ -256,9 +280,12 @@ func (worker *Worker) processNewRequest(d amqp.Delivery, request types.Whitelist
 		"ID":       request.ID,
 		"Type":     "New Reqeust Task",
 	}).Info("Received new task")
+
+	worker.updateCache(request)
 	// Need to handle new request
 	// Send application confirmation email to user
 	worker.emailConfirmation(request)
+
 	// Send approval request emails to op(s)
 	successCount, err := worker.emailToOps(request, viper.GetInt("minRequiredReceiver"))
 	if err != nil {

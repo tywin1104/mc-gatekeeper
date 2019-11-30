@@ -12,8 +12,10 @@ import (
 	"github.com/spf13/viper"
 	"github.com/streadway/amqp"
 	"github.com/tywin1104/mc-gatekeeper/broker"
+	"github.com/tywin1104/mc-gatekeeper/cache"
 	"github.com/tywin1104/mc-gatekeeper/db"
 	"github.com/tywin1104/mc-gatekeeper/server"
+	"github.com/tywin1104/mc-gatekeeper/server/sse"
 	"github.com/tywin1104/mc-gatekeeper/worker"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -56,7 +58,19 @@ func main() {
 	}
 	log.Info("Mongodb connection established")
 
+	// Setup database service
 	dbSvc := db.NewService(client)
+
+	// Initilize server side event server for pushing out stats
+	sseServer := sse.NewServer()
+	// Setup redis cache
+	cache := cache.NewService(dbSvc, sseServer)
+	err = cache.SyncCache()
+	// Set it running - listening and broadcasting events
+	go sseServer.Listen(cache.BroadcastViaSSE)
+	if err != nil {
+		log.Fatal("Unable to sync cache values: " + err.Error())
+	}
 
 	broker := broker.NewService(log, make(chan *amqp.Error))
 	// Watch for unexpected connection loss to rabbitMQ and re-establish connection
@@ -67,15 +81,15 @@ func main() {
 	wg.Add(2)
 	// Start the worker
 	workerLogger := log.WithField("origin", "worker")
-	worker, err := worker.NewWorker(dbSvc, workerLogger, make(chan *amqp.Error))
+	worker1, err := worker.NewWorker(dbSvc, cache, workerLogger, make(chan *amqp.Error))
 	if err != nil {
 		log.Fatal("Unable to start worker: " + err.Error())
 	}
-	go worker.Start(&wg)
-	defer worker.Close()
+	go worker1.Start(&wg)
+	defer worker1.Close()
 	// Setup and start the http REST API server
 	serverLogger := log.WithField("origin", "server")
-	httpServer := server.NewService(dbSvc, broker, serverLogger)
+	httpServer := server.NewService(dbSvc, broker, cache, sseServer, serverLogger)
 	go httpServer.Listen(viper.GetString("port"), &wg)
 	wg.Wait()
 	log.Info("Everything is up.")

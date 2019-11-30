@@ -4,14 +4,17 @@ go 1.12
 
 require (
 	github.com/auth0/go-jwt-middleware v0.0.0-20190805220309-36081240882b
+	github.com/brianvoe/gofakeit v3.18.0+incompatible
 	github.com/clsung/grcode v0.0.0-20181204013735-e7f3c16fb531
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/felixge/httpsnoop v1.0.1
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/golang/snappy v0.0.1 // indirect
+	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/gorilla/context v1.1.1 // indirect
 	github.com/gorilla/mux v1.6.2
 	github.com/makiuchi-d/gozxing v0.0.0-20190830103442-eaff64b1ceb7
+	github.com/prometheus/common v0.4.0
 	github.com/rs/cors v1.7.0
 	github.com/seeruk/minecraft-rcon v0.0.0-20190221212056-6ab996d90449
 	github.com/sirupsen/logrus v1.2.0

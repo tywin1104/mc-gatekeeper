@@ -17,16 +17,25 @@ import (
 func (svc *Service) HandleGetRequests() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log := svc.logger
-		requests, err := svc.dbService.GetRequests(-1, bson.D{{}})
+		var msg map[string]interface{}
+		// Try to fetch value from cache first
+		cachedRequests, err := svc.cache.GetAllRequests()
 		if err != nil {
-			http.Error(w, "Unable to get all requests", http.StatusInternalServerError)
-			log.WithFields(logrus.Fields{
-				"err": err.Error(),
-			}).Error("Unable to get all requests")
-			return
+			log.Debug("Got results from db")
+			requests, err := svc.dbService.GetRequests(-1, bson.D{{}})
+			if err != nil {
+				http.Error(w, "Unable to get all requests", http.StatusInternalServerError)
+				log.WithFields(logrus.Fields{
+					"err": err.Error(),
+				}).Error("Unable to get all requests")
+				return
+			}
+			msg = map[string]interface{}{"requests": requests}
+		} else {
+			log.Debug("Got cached results")
+			msg = map[string]interface{}{"requests": cachedRequests}
 		}
 		w.Header().Set("Content-Type", "application/json")
-		msg := map[string]interface{}{"requests": requests}
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(msg)
 	}

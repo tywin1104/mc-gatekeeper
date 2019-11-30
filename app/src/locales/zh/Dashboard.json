@@ -6,7 +6,8 @@
   },
   "Stats": {
     "Pending": "待审核的申请",
-    "Fulfilled": "处理完的申请",
+    "Approved": "通过的申请",
+    "Denied": "被拒绝的申请",
     "ResponseTime": "平均处理时间"
   },
   "Table": {

@@ -12,7 +12,9 @@ import (
 	"github.com/rs/cors"
 	"github.com/sirupsen/logrus"
 	"github.com/tywin1104/mc-gatekeeper/broker"
+	"github.com/tywin1104/mc-gatekeeper/cache"
 	"github.com/tywin1104/mc-gatekeeper/db"
+	"github.com/tywin1104/mc-gatekeeper/server/sse"
 )
 
 // Service represents struct that deals with database level operations
@@ -20,15 +22,19 @@ type Service struct {
 	dbService *db.Service
 	router    *mux.Router
 	broker    *broker.Service
+	sseServer *sse.Broker
 	logger    *logrus.Entry
+	cache     *cache.Service
 }
 
 // NewService create new mongoDb service that handles database level operations
-func NewService(db *db.Service, broker *broker.Service, logger *logrus.Entry) *Service {
+func NewService(db *db.Service, broker *broker.Service, cache *cache.Service, sseServer *sse.Broker, logger *logrus.Entry) *Service {
 	return &Service{
 		dbService: db,
 		router:    mux.NewRouter().StrictSlash(true),
 		broker:    broker,
+		cache:     cache,
+		sseServer: sseServer,
 		logger:    logger,
 	}
 }
@@ -85,6 +91,7 @@ func (svc *Service) routes() {
 	// Endpoints that are "external" to the users through cilent application
 	external := svc.router.PathPrefix("/api/v1/requests").Subrouter()
 	external.HandleFunc("/", svc.HandleCreateRequest()).Methods("POST")
+	external.Handle("/stats", svc.sseServer).Methods("GET")
 	external.HandleFunc("/{requestIdEncoded}", svc.HandleGetRequestByID()).Methods("GET")
 	external.HandleFunc("/{requestIdEncoded}", svc.HandlePatchRequestByID()).Methods("PATCH").Queries("adm", "{adm}")
 

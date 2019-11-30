@@ -1,57 +1,63 @@
 /* eslint-disable no-script-url */
 
 import React from "react";
-import { makeStyles } from "@material-ui/core/styles";
-import moment from "moment";
 import Typography from "@material-ui/core/Typography";
 import Title from "./Title";
 import i18next from "i18next";
 
-const useStyles = makeStyles({
-  depositContext: {
-    flex: 1
+class Stats extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      source: new EventSource("http://localhost:8080/api/v1/requests/stats/"),
+      stats: {}
+    };
   }
-});
 
-const getAverageResponseTimeInHours = fulfilledRequests => {
-  let total = 0;
-  fulfilledRequests.forEach(request => {
-    let start = moment.parseZone(request["timestamp"]);
-    let end = moment.parseZone(request["processedTimestamp"]);
-    let duration = moment.duration(end.diff(start));
-    total += duration.asHours();
-  });
-  // Avoid devide by zero
-  if (fulfilledRequests.length) {
-    return 0;
+  componentDidMount() {
+    const { source } = this.state;
+    source.addEventListener("closedConnection", e => this.source.close());
+    source.addEventListener("message", message => {
+      console.log(message);
+      this.updateStats(message.data);
+    });
   }
-  return total / fulfilledRequests.length;
-};
 
-export default function Stats(props) {
-  const classes = useStyles();
-  return (
-    <React.Fragment>
-      <Title>Stats</Title>
-      <Typography component="p" variant="h4">
-        {props.data.pendingRequests.length}
-      </Typography>
-      <Typography color="textSecondary" className={classes.depositContext}>
-        {i18next.t("Dashboard.Stats.Pending")}
-      </Typography>
-      <Typography component="p" variant="h4">
-        {props.data.fulfilledRequests.length}
-      </Typography>
-      <Typography color="textSecondary" className={classes.depositContext}>
-        {i18next.t("Dashboard.Stats.Fulfilled")}
-      </Typography>
-      <Typography component="p" variant="h4">
-        {getAverageResponseTimeInHours(props.data.fulfilledRequests).toFixed(1)}{" "}
-        Hours
-      </Typography>
-      <Typography color="textSecondary" className={classes.depositContext}>
-        {i18next.t("Dashboard.Stats.ResponseTime")}
-      </Typography>
-    </React.Fragment>
-  );
+  updateStats = data => {
+    this.setState({ stats: JSON.parse(data) });
+  };
+
+  render() {
+    return (
+      <React.Fragment>
+        <Title>Stats</Title>
+        <Typography component="p" variant="h4">
+          {this.state.stats.pending}
+        </Typography>
+        <Typography color="textSecondary">
+          {i18next.t("Dashboard.Stats.Pending")}
+        </Typography>
+        <Typography component="p" variant="h4">
+          {this.state.stats.approved}
+        </Typography>
+        <Typography color="textSecondary">
+          {i18next.t("Dashboard.Stats.Approved")}
+        </Typography>
+        <Typography component="p" variant="h4">
+          {this.state.stats.denied}
+        </Typography>
+        <Typography color="textSecondary">
+          {i18next.t("Dashboard.Stats.Denied")}
+        </Typography>
+        <Typography component="p" variant="h4">
+          {this.state.stats.averageResponseTimeInMinutes} Minutes
+        </Typography>
+        <Typography color="textSecondary">
+          {i18next.t("Dashboard.Stats.ResponseTime")}
+        </Typography>
+      </React.Fragment>
+    );
+  }
 }
+
+export default Stats;

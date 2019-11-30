@@ -6,7 +6,8 @@
   },
   "Stats": {
     "Pending": "Pending requests",
-    "Fulfilled": "Fulfilled requests",
+    "Approved": "Approved requests",
+    "Denied": "Denied requests",
     "ResponseTime": "Average Response Time"
   },
   "Table": {
