@@ -91,7 +91,7 @@ func (svc *Service) routes() {
 	// Endpoints that are "external" to the users through cilent application
 	external := svc.router.PathPrefix("/api/v1/requests").Subrouter()
 	external.HandleFunc("/", svc.HandleCreateRequest()).Methods("POST")
-	external.Handle("/stats", svc.sseServer).Methods("GET")
+	external.Handle("/stats/events", svc.sseServer).Methods("GET")
 	external.HandleFunc("/{requestIdEncoded}", svc.HandleGetRequestByID()).Methods("GET")
 	external.HandleFunc("/{requestIdEncoded}", svc.HandlePatchRequestByID()).Methods("PATCH").Queries("adm", "{adm}")
 

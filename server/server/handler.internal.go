@@ -21,7 +21,7 @@ func (svc *Service) HandleGetRequests() http.HandlerFunc {
 		// Try to fetch value from cache first
 		cachedRequests, err := svc.cache.GetAllRequests()
 		if err != nil {
-			log.Debug("Got results from db")
+			log.Debug("Fetch result from db")
 			requests, err := svc.dbService.GetRequests(-1, bson.D{{}})
 			if err != nil {
 				http.Error(w, "Unable to get all requests", http.StatusInternalServerError)

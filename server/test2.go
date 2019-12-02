@@ -1,11 +1,16 @@
-package sse
+package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
+	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/gorilla/mux"
 )
+
+// Example SSE server in Golang.
+//     $ go run sse.go
 
 type Broker struct {
 
@@ -20,26 +25,27 @@ type Broker struct {
 
 	// Client connections registry
 	clients map[chan []byte]bool
-	logger  *logrus.Entry
 }
 
-// NewServer instantiate a broker as SSE server
-func NewServer(logger *logrus.Entry) (broker *Broker) {
-
+func NewServer() (broker *Broker) {
+	// Instantiate a broker
 	broker = &Broker{
 		Notifier:       make(chan []byte, 1),
 		newClients:     make(chan chan []byte),
 		closingClients: make(chan chan []byte),
 		clients:        make(map[chan []byte]bool),
-		logger:         logger,
 	}
+
+	// Set it running - listening and broadcasting events
+	go broker.listen()
 
 	return
 }
 
 func (broker *Broker) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
-	// Make sure that the writer supports flushing
+	// Make sure that the writer supports flushing.
+	//
 	flusher, ok := rw.(http.Flusher)
 
 	if !ok {
@@ -85,10 +91,7 @@ func (broker *Broker) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 }
 
-// Listen starts to listen for clients connection related event
-// and send stats to the client when it first connects
-func (broker *Broker) Listen(onListenerJoinCallback func() error) {
-	log := broker.logger
+func (broker *Broker) listen() {
 	for {
 		select {
 		case s := <-broker.newClients:
@@ -96,25 +99,39 @@ func (broker *Broker) Listen(onListenerJoinCallback func() error) {
 			// A new client has connected.
 			// Register their message channel
 			broker.clients[s] = true
-			// Call the callback funcation to send event initially to connected clients
-			err := onListenerJoinCallback()
-			if err != nil {
-				log.Error("SSE server unable to send initial event when listener joins")
-			}
-			log.Debugf("SSE client added. %d registered clients", len(broker.clients))
+			log.Printf("Client added. %d registered clients", len(broker.clients))
 		case s := <-broker.closingClients:
 
 			// A client has dettached and we want to
 			// stop sending them messages.
 			delete(broker.clients, s)
-			log.Debugf("Removed SSE client. %d registered clients", len(broker.clients))
+			log.Printf("Removed client. %d registered clients", len(broker.clients))
 		case event := <-broker.Notifier:
 
 			// We got a new event from the outside!
 			// Send event to all connected clients
-			for clientMessageChan := range broker.clients {
+			for clientMessageChan, _ := range broker.clients {
 				clientMessageChan <- event
 			}
 		}
 	}
+
+}
+
+func main() {
+	broker := NewServer()
+	router := mux.NewRouter().StrictSlash(true)
+	subrouter := router.PathPrefix("/api/v1/test").Subrouter()
+	subrouter.Handle("/stats", broker)
+
+	go func() {
+		for {
+			time.Sleep(time.Second * 2)
+			eventString := fmt.Sprintf("the time is %v", time.Now())
+			log.Println("Receiving event")
+			broker.Notifier <- []byte(eventString)
+		}
+	}()
+
+	log.Fatal("HTTP server error: ", http.ListenAndServe("localhost:3002", router))
 }

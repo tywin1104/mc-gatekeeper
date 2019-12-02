@@ -247,7 +247,7 @@ class Dashboard extends React.Component {
               {/* Stats */}
               <Grid item xs={12} md={4} lg={3}>
                 <Paper className={fixedHeightPaper}>
-                  <Stats data={statsSource} />
+                  <Stats />
                 </Paper>
               </Grid>
               {/* Whitelist request table-view */}

@@ -6,6 +6,7 @@ import CheckStatus from "./components/CheckStatus";
 import AdminAction from "./components/AdminAction";
 import Dashboard from "./components/Dashboard/Dashboard";
 import Login from "./components/Login";
+import "eventsource-polyfill";
 
 class App extends React.Component {
   constructor(props) {

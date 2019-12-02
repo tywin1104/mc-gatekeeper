@@ -5,7 +5,8 @@ import {
   XAxis,
   YAxis,
   Label,
-  ResponsiveContainer
+  ResponsiveContainer,
+  Tooltip
 } from "recharts";
 import Title from "./Title";
 import moment from "moment";
@@ -65,6 +66,7 @@ export default function Chart(props) {
               {i18next.t("Dashboard.Chart.Count")}
             </Label>
           </YAxis>
+          <Tooltip />
           <Line type="monotone" dataKey="amount" stroke="#556CD6" dot={false} />
         </LineChart>
       </ResponsiveContainer>

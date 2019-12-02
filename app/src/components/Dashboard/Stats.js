@@ -1,15 +1,17 @@
 /* eslint-disable no-script-url */
 
 import React from "react";
+
 import Typography from "@material-ui/core/Typography";
 import Title from "./Title";
 import i18next from "i18next";
+import RequestsService from "../../service/RequestsService";
 
 class Stats extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      source: new EventSource("http://localhost:8080/api/v1/requests/stats/"),
+      source: RequestsService.getStatsEventSource(),
       stats: {}
     };
   }
@@ -17,8 +19,8 @@ class Stats extends React.Component {
   componentDidMount() {
     const { source } = this.state;
     source.addEventListener("closedConnection", e => this.source.close());
+    // Update the stats once data arrived from the sever via SSE
     source.addEventListener("message", message => {
-      console.log(message);
       this.updateStats(message.data);
     });
   }

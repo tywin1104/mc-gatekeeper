@@ -15,11 +15,10 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-//AllRequestKey ...
 const (
-	AllRequestKey = "AllRequests"
-	StatsKey      = "RequestsStats"
-	MaxRetry      = 5
+	allRequestKey = "AllRequests"
+	statsKey      = "RequestsStats"
+	maxRetry      = 5
 	layoutISO     = "01/02 2016"
 )
 
@@ -62,7 +61,7 @@ func NewService(db *db.Service, sseServer *sse.Broker) *Service {
 			"err": err.Error(),
 		}).Fatal("Unable to connect to redis cache")
 	}
-	log.Info("Redis cache connection established")
+	log.Info("Redis cache connection established. Please wait a few moments for initilization...")
 
 	return &Service{
 		dbService: db,
@@ -76,7 +75,7 @@ func (svc *Service) GetAllRequests() ([]types.WhitelistRequest, error) {
 	conn := svc.pool.Get()
 	defer conn.Close()
 	// Check if the key exists
-	exists, err := redis.Int(conn.Do("EXISTS", AllRequestKey))
+	exists, err := redis.Int(conn.Do("EXISTS", allRequestKey))
 	if err != nil {
 		return nil, err
 	} else if exists == 0 {
@@ -84,7 +83,7 @@ func (svc *Service) GetAllRequests() ([]types.WhitelistRequest, error) {
 	}
 
 	// If exists, get cached value
-	s, err := redis.String(conn.Do("GET", AllRequestKey))
+	s, err := redis.String(conn.Do("GET", allRequestKey))
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +106,7 @@ func (svc *Service) UpdateAllRequests() error {
 		return err
 	}
 	conn := svc.pool.Get()
-	_, err = conn.Do("SET", AllRequestKey, json)
+	_, err = conn.Do("SET", allRequestKey, json)
 	if err != nil {
 		return err
 	}
@@ -118,7 +117,7 @@ func (svc *Service) UpdateAllRequests() error {
 func (svc *Service) GetStats() (Stats, error) {
 	conn := svc.pool.Get()
 	defer conn.Close()
-	values, err := redis.Values(conn.Do("HGETALL", StatsKey))
+	values, err := redis.Values(conn.Do("HGETALL", statsKey))
 	if err != nil {
 		return Stats{}, err
 	}
@@ -134,7 +133,7 @@ func (svc *Service) GetStats() (Stats, error) {
 // UpdateStats makes proper change to the stats exposed to the mgmt dashboard according
 // to the current status of the request
 func (svc *Service) UpdateStats(request types.WhitelistRequest) error {
-	for n := 1; n <= MaxRetry; n++ {
+	for n := 1; n <= maxRetry; n++ {
 		conn := svc.pool.Get()
 		defer conn.Close()
 		stats, err := svc.GetStats()
@@ -142,7 +141,7 @@ func (svc *Service) UpdateStats(request types.WhitelistRequest) error {
 			return err
 		}
 		// Instruct Redis to watch the stats hash for any changes
-		_, err = conn.Do("WATCH", StatsKey)
+		_, err = conn.Do("WATCH", statsKey)
 		if err != nil {
 			return err
 		}
@@ -153,7 +152,7 @@ func (svc *Service) UpdateStats(request types.WhitelistRequest) error {
 		var newApprovedCount, newDeniedCount, newPendingCount int64
 		var newTotalResponseTimeInMinutes, newAverageResponseTimeInMinutes float64
 		var args = make([]interface{}, 0)
-		args = append(args, StatsKey)
+		args = append(args, statsKey)
 		// Update the values for stats on the cache according to different type of actions being
 		// made for the request
 		switch request.Status {
@@ -193,7 +192,7 @@ func (svc *Service) UpdateStats(request types.WhitelistRequest) error {
 		// the loop.
 		_, err = redis.Values(conn.Do("EXEC"))
 		if err == redis.ErrNil {
-			log.Debugf("Race condition detected. Retring %d/%d \n", n, MaxRetry)
+			log.Infof("Race condition detected during stats update. Retring %d/%d \n", n, maxRetry)
 			time.Sleep(time.Second * 2)
 			continue
 		} else if err != nil {
@@ -226,14 +225,14 @@ func (svc *Service) SyncCache() error {
 	if err != nil {
 		return err
 	}
-	for n := 1; n <= MaxRetry; n++ {
+	for n := 1; n <= maxRetry; n++ {
 		conn := svc.pool.Get()
 		defer conn.Close()
 		requests, err := svc.GetAllRequests()
 		if err != nil {
 			return err
 		}
-		_, err = conn.Do("WATCH", StatsKey)
+		_, err = conn.Do("WATCH", statsKey)
 		if err != nil {
 			return err
 		}
@@ -261,7 +260,7 @@ func (svc *Service) SyncCache() error {
 			return err
 		}
 		err = conn.Send(
-			"HMSET", StatsKey,
+			"HMSET", statsKey,
 			"pending", pending, "denied", denied,
 			"approved", approved,
 			"averageResponseTimeInMinutes", averageResponseTimeInMinutes,
@@ -271,13 +270,12 @@ func (svc *Service) SyncCache() error {
 		}
 		_, err = redis.Values(conn.Do("EXEC"))
 		if err == redis.ErrNil {
-			log.Debugf("Race condition detected. Retring %d/%d \n", n, MaxRetry)
+			log.Infof("Race condition detected during initial cache sync. Retring %d/%d \n", n, maxRetry)
 			time.Sleep(time.Second * 2)
 			continue
 		} else if err != nil {
 			return err
 		}
-		svc.BroadcastViaSSE()
 		log.Info("Initial cache sync completed")
 		return nil
 	}

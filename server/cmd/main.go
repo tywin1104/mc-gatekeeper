@@ -62,15 +62,16 @@ func main() {
 	dbSvc := db.NewService(client)
 
 	// Initilize server side event server for pushing out stats
-	sseServer := sse.NewServer()
+	serverLogger := log.WithField("origin", "server")
+	sseServer := sse.NewServer(serverLogger)
 	// Setup redis cache
 	cache := cache.NewService(dbSvc, sseServer)
 	err = cache.SyncCache()
-	// Set it running - listening and broadcasting events
-	go sseServer.Listen(cache.BroadcastViaSSE)
 	if err != nil {
 		log.Fatal("Unable to sync cache values: " + err.Error())
 	}
+	// Set it running - listening and broadcasting events
+	go sseServer.Listen(cache.BroadcastViaSSE)
 
 	broker := broker.NewService(log, make(chan *amqp.Error))
 	// Watch for unexpected connection loss to rabbitMQ and re-establish connection
@@ -88,7 +89,6 @@ func main() {
 	go worker1.Start(&wg)
 	defer worker1.Close()
 	// Setup and start the http REST API server
-	serverLogger := log.WithField("origin", "server")
 	httpServer := server.NewService(dbSvc, broker, cache, sseServer, serverLogger)
 	go httpServer.Listen(viper.GetString("port"), &wg)
 	wg.Wait()
