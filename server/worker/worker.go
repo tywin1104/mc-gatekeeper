@@ -210,7 +210,7 @@ func (worker *Worker) runLoop() {
 }
 
 func (worker *Worker) updateCache(request types.WhitelistRequest) {
-	// Update the cache. Best effort only
+	// Update the cache for all requests. Best effort only
 	err := worker.cache.UpdateAllRequests()
 	if err != nil {
 		worker.logger.WithFields(logrus.Fields{

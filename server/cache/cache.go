@@ -6,6 +6,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/spf13/viper"
 	"github.com/tywin1104/mc-gatekeeper/server/sse"
 
 	"github.com/gomodule/redigo/redis"
@@ -49,7 +50,7 @@ func NewService(db *db.Service, sseServer *sse.Broker) *Service {
 		MaxIdle:     10,
 		IdleTimeout: 240 * time.Second,
 		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", ":6379")
+			c, err := redis.Dial("tcp", viper.GetString("redisConn"))
 			return c, err
 		},
 	}
@@ -200,7 +201,12 @@ func (svc *Service) UpdateStats(request types.WhitelistRequest) error {
 		}
 		// After a successful update, broadcast the new stats to clients
 		// who are listening for the stats update via ServerSideEvent http server
-		svc.BroadcastViaSSE()
+		err = svc.BroadcastViaSSE()
+		if err != nil {
+			log.WithFields(logrus.Fields{
+				"err": err.Error(),
+			}).Error("Unable to broadcast event for stats update")
+		}
 		return nil
 	}
 	return errors.New("Unable to update stats. Give up")
@@ -212,7 +218,10 @@ func (svc *Service) BroadcastViaSSE() error {
 	if err != nil {
 		return err
 	}
-	jsonBytes, _ := json.Marshal(stats)
+	jsonBytes, err := json.Marshal(stats)
+	if err != nil {
+		return err
+	}
 	svc.sseServer.Notifier <- jsonBytes
 	return nil
 }
@@ -253,7 +262,11 @@ func (svc *Service) SyncCache() error {
 				pending++
 			}
 		}
-		averageResponseTimeInMinutes := math.Round(totalResponseTimeInMinutes / float64(approved+denied))
+		var averageResponseTimeInMinutes float64
+		// Only update the averageResponseTime if there are fulfilled requests
+		if totalResponseTimeInMinutes != 0 {
+			averageResponseTimeInMinutes = math.Round(totalResponseTimeInMinutes / float64(approved+denied))
+		}
 
 		err = conn.Send("MULTI")
 		if err != nil {

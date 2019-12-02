@@ -17,8 +17,10 @@ import (
 
 	"github.com/streadway/amqp"
 	"github.com/tywin1104/mc-gatekeeper/broker"
+	"github.com/tywin1104/mc-gatekeeper/cache"
 	"github.com/tywin1104/mc-gatekeeper/db"
 	"github.com/tywin1104/mc-gatekeeper/server"
+	"github.com/tywin1104/mc-gatekeeper/server/sse"
 	"github.com/tywin1104/mc-gatekeeper/types"
 	"github.com/tywin1104/mc-gatekeeper/utils"
 	"go.mongodb.org/mongo-driver/bson"
@@ -37,6 +39,7 @@ var newRequest4 *types.WhitelistRequest
 var newRequest5 *types.WhitelistRequest
 
 var log = logrus.New()
+var cacheService *cache.Service
 
 func TestMain(m *testing.M) {
 	// Mock the main application using the test configuration file
@@ -66,7 +69,14 @@ func TestMain(m *testing.M) {
 	broker := broker.NewService(log, make(chan *amqp.Error))
 	defer broker.Close()
 	serverLogger := log.WithField("origin", "server")
-	s = server.NewService(dbSvc, broker, serverLogger)
+	sseServer := sse.NewServer(serverLogger)
+	// Setup redis cache
+	cacheService = cache.NewService(dbSvc, sseServer)
+	err = cacheService.SyncCache()
+	if err != nil {
+		log.Fatal("Unable to sync cache values: " + err.Error())
+	}
+	s = server.NewService(dbSvc, broker, cacheService, sseServer, serverLogger)
 
 	// Create mock db objects
 	_id1, err := primitive.ObjectIDFromHex("5dc4dc43f7310f4c2a005673")
@@ -516,6 +526,11 @@ func TestGetRequestsInternal(t *testing.T) {
 	dbClient.Database("mc-whitelist").Collection("requests").InsertOne(context.TODO(), newRequest1)
 	dbClient.Database("mc-whitelist").Collection("requests").InsertOne(context.TODO(), newRequest2)
 	dbClient.Database("mc-whitelist").Collection("requests").InsertOne(context.TODO(), newRequest3)
+	// Need to manually sync cache as we add entries directly into db without going through all the process
+	err := cacheService.SyncCache()
+	if err != nil {
+		log.Fatal("Unable to sync cache values: " + err.Error())
+	}
 	// Generate jwt token with admin login
 	var jsonStr = []byte(`{"username": "testadmin", "password": "testadminpassword"}`)
 	req, err := http.NewRequest("POST", "/api/v1/auth/", bytes.NewBuffer(jsonStr))

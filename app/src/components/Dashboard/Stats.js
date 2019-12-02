@@ -21,6 +21,7 @@ class Stats extends React.Component {
     source.addEventListener("closedConnection", e => this.source.close());
     // Update the stats once data arrived from the sever via SSE
     source.addEventListener("message", message => {
+      // console.log(message);
       this.updateStats(message.data);
     });
   }

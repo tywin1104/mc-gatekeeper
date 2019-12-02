@@ -40,6 +40,16 @@ services:
         timeout: 10s
         retries: 5
 
+  cache:
+    image: redis
+    depends_on:
+      - mongo
+    container_name: gatekeeper-cache
+    expose:
+      - 6379
+    networks:
+      - "test_network"
+
   server:
     build:
       context: ./server

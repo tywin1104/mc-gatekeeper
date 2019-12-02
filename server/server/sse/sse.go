@@ -51,6 +51,7 @@ func (broker *Broker) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	rw.Header().Set("Cache-Control", "no-cache")
 	rw.Header().Set("Connection", "keep-alive")
 	rw.Header().Set("Access-Control-Allow-Origin", "*")
+	rw.Header().Set("X-Accel-Buffering", "no")
 
 	// Each connection registers its own message channel with the Broker's connections registry
 	messageChan := make(chan []byte)
@@ -92,16 +93,17 @@ func (broker *Broker) Listen(onListenerJoinCallback func() error) {
 	for {
 		select {
 		case s := <-broker.newClients:
-
+			log.Debugf("SSE client added. %d registered clients", len(broker.clients))
 			// A new client has connected.
 			// Register their message channel
 			broker.clients[s] = true
 			// Call the callback funcation to send event initially to connected clients
 			err := onListenerJoinCallback()
 			if err != nil {
-				log.Error("SSE server unable to send initial event when listener joins")
+				log.WithFields(logrus.Fields{
+					"err": err.Error(),
+				}).Error("SSE server unable to send initial event when listener joins")
 			}
-			log.Debugf("SSE client added. %d registered clients", len(broker.clients))
 		case s := <-broker.closingClients:
 
 			// A client has dettached and we want to
