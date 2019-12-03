@@ -3,9 +3,8 @@
 import React from "react";
 
 import Typography from "@material-ui/core/Typography";
-import Title from "./Title";
 import i18next from "i18next";
-import RequestsService from "../../service/RequestsService";
+import RequestsService from "../../../service/RequestsService";
 
 class Stats extends React.Component {
   constructor(props) {
@@ -33,7 +32,6 @@ class Stats extends React.Component {
   render() {
     return (
       <React.Fragment>
-        <Title>Stats</Title>
         <Typography component="p" variant="h4">
           {this.state.stats.pending}
         </Typography>

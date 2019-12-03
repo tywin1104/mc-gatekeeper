@@ -9,7 +9,7 @@ import WcIcon from "@material-ui/icons/Wc";
 import FaceIcon from "@material-ui/icons/Face";
 import CommentIcon from "@material-ui/icons/Comment";
 import moment from "moment";
-import RequestsService from "../../service/RequestsService";
+import RequestsService from "../../../service/RequestsService";
 import i18next from "i18next";
 import { CSVLink } from "react-csv";
 

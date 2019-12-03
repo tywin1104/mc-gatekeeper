@@ -6,21 +6,20 @@ import Drawer from "@material-ui/core/Drawer";
 import AppBar from "@material-ui/core/AppBar";
 import Toolbar from "@material-ui/core/Toolbar";
 import List from "@material-ui/core/List";
+import ListItem from "@material-ui/core/ListItem";
+import ListItemIcon from "@material-ui/core/ListItemIcon";
+import ListItemText from "@material-ui/core/ListItemText";
+import DashboardIcon from "@material-ui/icons/Dashboard";
 import Typography from "@material-ui/core/Typography";
 import Divider from "@material-ui/core/Divider";
 import IconButton from "@material-ui/core/IconButton";
-import Container from "@material-ui/core/Container";
-import Grid from "@material-ui/core/Grid";
-import Paper from "@material-ui/core/Paper";
 import Link from "@material-ui/core/Link";
 import MenuIcon from "@material-ui/icons/Menu";
 import ChevronLeftIcon from "@material-ui/icons/ChevronLeft";
-import { mainListItems } from "./listItems";
-import Chart from "./Chart";
-import Stats from "./Stats";
-import Table from "./Table";
 import RequestsService from "../../service/RequestsService";
 import i18next from "i18next";
+import Landing from "./landing/landing";
+import Metrics from "./metrics/metrics";
 
 const drawerWidth = 240;
 const useStyles = theme => ({
@@ -170,18 +169,7 @@ class Dashboard extends React.Component {
     if (this.state.requests == null) {
       return <div>Loading...</div>;
     }
-    let pendingRequests = this.state.requests.filter(request => {
-      return request.status === "Pending";
-    });
-    let fulfilledRequests = this.state.requests.filter(request => {
-      return request.status === "Approved" || request.status === "Denied";
-    });
-    let approvedRequests = this.state.requests.filter(request => {
-      return request.status === "Approved";
-    });
-    let statsSource = { pendingRequests, fulfilledRequests, approvedRequests };
     const { classes } = this.props;
-    const fixedHeightPaper = clsx(classes.paper, classes.fixedHeight);
     return (
       <div className={classes.root}>
         <CssBaseline />
@@ -232,38 +220,30 @@ class Dashboard extends React.Component {
             </IconButton>
           </div>
           <Divider />
-          <List>{mainListItems}</List>
+          <List>
+            <div>
+              <ListItem button>
+                <ListItemIcon>
+                  <DashboardIcon />
+                </ListItemIcon>
+                <ListItemText primary="Dashboard" />
+              </ListItem>
+              <ListItem button>
+                <ListItemIcon>
+                  <DashboardIcon />
+                </ListItemIcon>
+                <ListItemText primary="Dashboard" />
+              </ListItem>
+            </div>
+          </List>
         </Drawer>
         <main className={classes.content}>
           <div className={classes.appBarSpacer} />
-          <Container maxWidth="lg" className={classes.container}>
-            <Grid container spacing={3}>
-              {/* Chart */}
-              <Grid item xs={12} md={8} lg={9}>
-                <Paper className={fixedHeightPaper}>
-                  <Chart requests={this.state.requests} />
-                </Paper>
-              </Grid>
-              {/* Stats */}
-              <Grid item xs={12} md={4} lg={3}>
-                <Paper className={fixedHeightPaper}>
-                  <Stats />
-                </Paper>
-              </Grid>
-              {/* Whitelist request table-view */}
-              <Grid item xs={12}>
-                <Paper className={classes.paper}>
-                  <Table
-                    requests={this.state.requests}
-                    config={this.state.auth_header}
-                    handleChangeRequestStatus={requestID =>
-                      this.handleChangeRequestStatus(requestID)
-                    }
-                  />
-                </Paper>
-              </Grid>
-            </Grid>
-          </Container>
+          <Landing
+            requests={this.state.requests}
+            auth_header={this.state.auth_header}
+            handleChangeRequestStatus={this.handleChangeRequestStatus}
+          ></Landing>
           <Typography variant="body2" color="textSecondary" align="center">
             {"Copyright © "}
             <Link color="inherit">Your Website</Link> {new Date().getFullYear()}
