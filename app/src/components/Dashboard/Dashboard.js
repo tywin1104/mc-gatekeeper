@@ -13,6 +13,7 @@ import DashboardIcon from "@material-ui/icons/Dashboard";
 import Typography from "@material-ui/core/Typography";
 import Divider from "@material-ui/core/Divider";
 import IconButton from "@material-ui/core/IconButton";
+import EqualizerIcon from "@material-ui/icons/Equalizer";
 import Link from "@material-ui/core/Link";
 import MenuIcon from "@material-ui/icons/Menu";
 import ChevronLeftIcon from "@material-ui/icons/ChevronLeft";
@@ -107,7 +108,8 @@ class Dashboard extends React.Component {
     this.state = {
       open: true,
       requests: null,
-      auth_header: {}
+      auth_header: {},
+      view: "landing"
     };
   }
 
@@ -154,6 +156,11 @@ class Dashboard extends React.Component {
       open: false
     });
   };
+  handleSwitchView = view => {
+    this.setState({
+      view: view
+    });
+  };
 
   handleChangeRequestStatus = (requestID, newStatus) => {
     let requests = this.state.requests;
@@ -170,6 +177,18 @@ class Dashboard extends React.Component {
       return <div>Loading...</div>;
     }
     const { classes } = this.props;
+    let view;
+    if (this.state.view === "landing") {
+      view = (
+        <Landing
+          requests={this.state.requests}
+          auth_header={this.state.auth_header}
+          handleChangeRequestStatus={this.handleChangeRequestStatus}
+        ></Landing>
+      );
+    } else if (this.state.view === "metrics") {
+      view = <Metrics requests={this.state.requests}></Metrics>;
+    }
     return (
       <div className={classes.root}>
         <CssBaseline />
@@ -222,28 +241,24 @@ class Dashboard extends React.Component {
           <Divider />
           <List>
             <div>
-              <ListItem button>
+              <ListItem button onClick={() => this.handleSwitchView("landing")}>
                 <ListItemIcon>
                   <DashboardIcon />
                 </ListItemIcon>
                 <ListItemText primary="Dashboard" />
               </ListItem>
-              <ListItem button>
+              <ListItem button onClick={() => this.handleSwitchView("metrics")}>
                 <ListItemIcon>
-                  <DashboardIcon />
+                  <EqualizerIcon />
                 </ListItemIcon>
-                <ListItemText primary="Dashboard" />
+                <ListItemText primary="Real-Time Metrics" />
               </ListItem>
             </div>
           </List>
         </Drawer>
         <main className={classes.content}>
           <div className={classes.appBarSpacer} />
-          <Landing
-            requests={this.state.requests}
-            auth_header={this.state.auth_header}
-            handleChangeRequestStatus={this.handleChangeRequestStatus}
-          ></Landing>
+          {view}
           <Typography variant="body2" color="textSecondary" align="center">
             {"Copyright © "}
             <Link color="inherit">Your Website</Link> {new Date().getFullYear()}

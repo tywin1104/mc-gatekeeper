@@ -21,6 +21,7 @@ const (
 	statsKey      = "RequestsStats"
 	maxRetry      = 5
 	layoutISO     = "01/02 2016"
+	ageGroupStep  = 15
 )
 
 // Service represents a redis cache that is used to cache API results
@@ -39,6 +40,13 @@ type Stats struct {
 	Approved                     int64   `redis:"approved" json:"approved"`
 	AverageResponseTimeInMinutes float64 `redis:"averageResponseTimeInMinutes" json:"averageResponseTimeInMinutes"`
 	TotalResponseTimeInMinutes   float64 `redis:"totalResponseTimeInMinutes" json:"totalResponseTimeInMinutes"`
+	MaleCount                    int64   `redis:"maleCount" json:"maleCount"`
+	FemaleCount                  int64   `redis:"femaleCount" json:"femaleCount"`
+	OtherGenderCount             int64   `redis:"otherGenderCount" json:"otherGenderCount"`
+	AgeGroup1Count               int64   `redis:"ageGroup1Count" json:"ageGroup1Count"`
+	AgeGroup2Count               int64   `redis:"ageGroup2Count" json:"ageGroup2Count"`
+	AgeGroup3Count               int64   `redis:"ageGroup3Count" json:"ageGroup3Count"`
+	AgeGroup4Count               int64   `redis:"ageGroup4Count" json:"ageGroup4Count"`
 }
 
 var log = logrus.New()
@@ -150,6 +158,14 @@ func (svc *Service) UpdateStats(request types.WhitelistRequest) error {
 		oldDeniedCount := stats.Denied
 		oldPendingCount := stats.Pending
 		oldTotalResponseTimeInMinutes := stats.TotalResponseTimeInMinutes
+		newMaleCount := stats.MaleCount
+		newFemaleCount := stats.FemaleCount
+		newOtherGenderCount := stats.OtherGenderCount
+
+		newAgeGroup1Count := stats.AgeGroup1Count
+		newAgeGroup2Count := stats.AgeGroup2Count
+		newAgeGroup3Count := stats.AgeGroup3Count
+		newAgeGroup4Count := stats.AgeGroup4Count
 		var newApprovedCount, newDeniedCount, newPendingCount int64
 		var newTotalResponseTimeInMinutes, newAverageResponseTimeInMinutes float64
 		var args = make([]interface{}, 0)
@@ -158,6 +174,31 @@ func (svc *Service) UpdateStats(request types.WhitelistRequest) error {
 		// made for the request
 		switch request.Status {
 		case "Approved":
+			// Update gender metric
+			switch request.Gender {
+			case "male":
+				newMaleCount++
+			case "female":
+				newFemaleCount++
+			default:
+				newOtherGenderCount++
+			}
+			args = append(args, []interface{}{"maleCount", newMaleCount, "femaleCount", newFemaleCount, "otherGenderCount", newOtherGenderCount}...)
+
+			// Update age group metric
+			age := request.Age
+			var step int64 = ageGroupStep
+			if 0 <= age && age < step {
+				newAgeGroup1Count++
+			} else if step <= age && age < step*2 {
+				newAgeGroup2Count++
+			} else if step*2 <= age && age < step*3 {
+				newAgeGroup3Count++
+			} else {
+				newAgeGroup4Count++
+			}
+			args = append(args, []interface{}{"ageGroup1Count", newAgeGroup1Count, "ageGroup2Count", newAgeGroup2Count, "ageGroup3Count", newAgeGroup3Count, "ageGroup4Count", newAgeGroup4Count}...)
+
 			newApprovedCount = oldApprovedCount + 1
 			newPendingCount = oldPendingCount - 1
 			newTotalResponseTimeInMinutes = oldTotalResponseTimeInMinutes + request.ProcessedTimestamp.Sub(request.Timestamp).Minutes()
@@ -249,11 +290,34 @@ func (svc *Service) SyncCache() error {
 		// And update the stats value in cache
 		var approved, denied, pending int64
 		var totalResponseTimeInMinutes float64
+		var maleCount, femaleCount, otherGenderCount int64
+		var ageGroup1Count, ageGroup2Count, ageGroup3Count, ageGroup4Count int64
 		for _, request := range requests {
-			// Gather count related stats
 			switch request.Status {
 			case "Approved":
 				approved++
+				// Gather gender metric
+				switch request.Gender {
+				case "male":
+					maleCount++
+				case "female":
+					femaleCount++
+				default:
+					otherGenderCount++
+				}
+				// Gather age group metric
+				age := request.Age
+				// temp value
+				var step int64 = ageGroupStep
+				if 0 <= age && age < step {
+					ageGroup1Count++
+				} else if step <= age && age < step*2 {
+					ageGroup2Count++
+				} else if step*2 <= age && age < step*3 {
+					ageGroup3Count++
+				} else {
+					ageGroup4Count++
+				}
 				totalResponseTimeInMinutes += request.ProcessedTimestamp.Sub(request.Timestamp).Minutes()
 			case "Denied":
 				denied++
@@ -277,7 +341,14 @@ func (svc *Service) SyncCache() error {
 			"pending", pending, "denied", denied,
 			"approved", approved,
 			"averageResponseTimeInMinutes", averageResponseTimeInMinutes,
-			"totalResponseTimeInMinutes", totalResponseTimeInMinutes)
+			"totalResponseTimeInMinutes", totalResponseTimeInMinutes,
+			"maleCount", maleCount,
+			"femaleCount", femaleCount,
+			"otherGenderCount", otherGenderCount,
+			"ageGroup1Count", ageGroup1Count,
+			"ageGroup2Count", ageGroup2Count,
+			"ageGroup3Count", ageGroup3Count,
+			"ageGroup4Count", ageGroup4Count)
 		if err != nil {
 			return err
 		}
