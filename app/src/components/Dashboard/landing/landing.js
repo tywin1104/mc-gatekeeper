@@ -5,7 +5,6 @@ import Container from "@material-ui/core/Container";
 import Grid from "@material-ui/core/Grid";
 import Paper from "@material-ui/core/Paper";
 import Chart from "./Chart";
-import Stats from "./Stats";
 import Table from "./Table";
 
 const useStyles = theme => ({
@@ -36,15 +35,9 @@ class Landing extends React.Component {
       <Container maxWidth="lg" className={classes.container}>
         <Grid container spacing={3}>
           {/* Chart */}
-          <Grid item xs={12} md={8} lg={9}>
+          <Grid item xs={12} md={12} lg={12}>
             <Paper className={fixedHeightPaper}>
               <Chart requests={this.props.requests} />
-            </Paper>
-          </Grid>
-          {/* Stats */}
-          <Grid item xs={12} md={4} lg={3}>
-            <Paper className={fixedHeightPaper}>
-              <Stats />
             </Paper>
           </Grid>
           {/* Whitelist request table-view */}
