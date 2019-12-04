@@ -63,7 +63,7 @@ func (svc *Service) HandleAdminSignin() http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-
+		w.Header().Set("Content-Type", "application/json")
 		msg := map[string]map[string]interface{}{"token": {
 			"value":   tokenString,
 			"expires": expirationTime,

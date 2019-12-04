@@ -66,10 +66,13 @@ func main() {
 	sseServer := sse.NewServer(serverLogger)
 	// Setup redis cache
 	cache := cache.NewService(dbSvc, sseServer)
-	err = cache.SyncCache()
+	err = cache.SyncStats()
 	if err != nil {
 		log.Fatal("Unable to sync cache values: " + err.Error())
 	}
+	// Start background job to collect aggregate stats at a interval
+	go aggregatingStats(cache)
+
 	// Set it running - listening and broadcasting events
 	go sseServer.Listen(cache.BroadcastViaSSE)
 
@@ -122,4 +125,19 @@ func watchConfig(log *logrus.Logger) {
 			"file": e.Name,
 		}).Info("Config file changed:")
 	})
+}
+
+func aggregatingStats(cache *cache.Service) {
+	for range time.Tick(5 * time.Minute) {
+		go func() {
+			err := cache.UpdateAggregateStats()
+			if err != nil {
+				log.WithFields(logrus.Fields{
+					"err": err.Error(),
+				}).Error("Unable to aggregate stats")
+			} else {
+				log.Info("Aggregate stats data completed")
+			}
+		}()
+	}
 }

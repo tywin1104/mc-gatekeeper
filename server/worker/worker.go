@@ -219,7 +219,7 @@ func (worker *Worker) updateCache(request types.WhitelistRequest) {
 	}
 
 	// Update Stats value in cache
-	err = worker.cache.UpdateStats(request)
+	err = worker.cache.UpdateRealTimeStats(request)
 	if err != nil {
 		worker.logger.WithFields(logrus.Fields{
 			"err": err.Error(),

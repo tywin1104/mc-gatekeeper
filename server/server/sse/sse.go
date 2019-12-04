@@ -93,10 +93,10 @@ func (broker *Broker) Listen(onListenerJoinCallback func() error) {
 	for {
 		select {
 		case s := <-broker.newClients:
-			log.Debugf("SSE client added. %d registered clients", len(broker.clients))
 			// A new client has connected.
 			// Register their message channel
 			broker.clients[s] = true
+			log.Debugf("SSE client added. %d registered clients", len(broker.clients))
 			// Call the callback funcation to send event initially to connected clients
 			err := onListenerJoinCallback()
 			if err != nil {

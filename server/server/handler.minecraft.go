@@ -167,6 +167,7 @@ func (svc *Service) handleGetSkinURLByUsername() http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		msg := map[string]map[string]interface{}{"skin": {
 			"url": url,
 		}}
