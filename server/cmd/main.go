@@ -74,7 +74,7 @@ func main() {
 	go aggregatingStats(cache)
 
 	// Set it running - listening and broadcasting events
-	go sseServer.Listen(cache.BroadcastViaSSE)
+	go sseServer.Listen(cache.BroadcastStats)
 
 	broker := broker.NewService(log, make(chan *amqp.Error))
 	// Watch for unexpected connection loss to rabbitMQ and re-establish connection
@@ -128,7 +128,7 @@ func watchConfig(log *logrus.Logger) {
 }
 
 func aggregatingStats(cache *cache.Service) {
-	for range time.Tick(5 * time.Minute) {
+	for range time.Tick(10 * time.Second) {
 		go func() {
 			err := cache.UpdateAggregateStats()
 			if err != nil {

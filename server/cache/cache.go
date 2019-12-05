@@ -3,6 +3,7 @@ package cache
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"time"
 
@@ -17,40 +18,41 @@ import (
 )
 
 const (
-	allRequestKey     = "AllRequests"
-	statsKey          = "ReltimeStats"
-	aggregateStatsKey = "AggregateStats"
-	maxRetry          = 5
-	layoutISO         = "01/02 2016"
-	ageGroupStep      = 15
+	allRequestKey        = "AllRequests"
+	statsKey             = "Stats"
+	aggregateStatusField = "AggregateStats"
+	maxRetry             = 5
+	layoutISO            = "01/02 2016"
+	ageGroupStep         = 15
 )
 
 // Service represents a redis cache that is used to cache API results
-// and store real-time stats
+// and store application specific stats
 type Service struct {
 	dbService *db.Service
 	pool      *redis.Pool
 	sseServer *sse.Broker
 }
 
-// RealTimeStats represents real-time stats for all application any any moment
-// Those are the application specific values that feed to the mgmt dashboard
-type RealTimeStats struct {
-	Pending                      int64   `redis:"pending" json:"pending"`
-	Denied                       int64   `redis:"denied" json:"denied"`
-	Approved                     int64   `redis:"approved" json:"approved"`
-	AverageResponseTimeInMinutes float64 `redis:"averageResponseTimeInMinutes" json:"averageResponseTimeInMinutes"`
-	TotalResponseTimeInMinutes   float64 `redis:"totalResponseTimeInMinutes" json:"totalResponseTimeInMinutes"`
-	MaleCount                    int64   `redis:"maleCount" json:"maleCount"`
-	FemaleCount                  int64   `redis:"femaleCount" json:"femaleCount"`
-	OtherGenderCount             int64   `redis:"otherGenderCount" json:"otherGenderCount"`
-	AgeGroup1Count               int64   `redis:"ageGroup1Count" json:"ageGroup1Count"`
-	AgeGroup2Count               int64   `redis:"ageGroup2Count" json:"ageGroup2Count"`
-	AgeGroup3Count               int64   `redis:"ageGroup3Count" json:"ageGroup3Count"`
-	AgeGroup4Count               int64   `redis:"ageGroup4Count" json:"ageGroup4Count"`
+// Stats is composed of both thre real-time stats that got updated in real-time after each
+// application status change AND aggregate stats that are analyzed and updated at a regular interval
+type Stats struct {
+	Pending                      int64           `redis:"pending" json:"pending"`
+	Denied                       int64           `redis:"denied" json:"denied"`
+	Approved                     int64           `redis:"approved" json:"approved"`
+	AverageResponseTimeInMinutes float64         `redis:"averageResponseTimeInMinutes" json:"averageResponseTimeInMinutes"`
+	TotalResponseTimeInMinutes   float64         `redis:"totalResponseTimeInMinutes" json:"totalResponseTimeInMinutes"`
+	MaleCount                    int64           `redis:"maleCount" json:"maleCount"`
+	FemaleCount                  int64           `redis:"femaleCount" json:"femaleCount"`
+	OtherGenderCount             int64           `redis:"otherGenderCount" json:"otherGenderCount"`
+	AgeGroup1Count               int64           `redis:"ageGroup1Count" json:"ageGroup1Count"`
+	AgeGroup2Count               int64           `redis:"ageGroup2Count" json:"ageGroup2Count"`
+	AgeGroup3Count               int64           `redis:"ageGroup3Count" json:"ageGroup3Count"`
+	AgeGroup4Count               int64           `redis:"ageGroup4Count" json:"ageGroup4Count"`
+	AggreagateStats              AggreagateStats `redis:"-" json:"aggreagateStats"`
 }
 
-// AggreagateStats are obtained at a regular interval for some time-consuming analysis
+// AggreagateStats are records of some time-consuming results and got updated at regular intervals
 type AggreagateStats struct {
 	OvertimeCount    int                     `json:"overtimeCount"`
 	OvertimeIDs      []string                `json:"overtimeIDs"`
@@ -66,7 +68,7 @@ type Performance struct {
 
 var log = logrus.New()
 
-// NewService create and initilize a new caching service
+// NewService creates and initilize a new caching service
 func NewService(db *db.Service, sseServer *sse.Broker) *Service {
 	var log = logrus.New()
 	pool := &redis.Pool{
@@ -94,30 +96,8 @@ func NewService(db *db.Service, sseServer *sse.Broker) *Service {
 	}
 }
 
-func (svc *Service) GetAggregateStats() (AggreagateStats, error) {
-	conn := svc.pool.Get()
-	defer conn.Close()
-	// Check if the key exists
-	exists, err := redis.Int(conn.Do("EXISTS", aggregateStatsKey))
-	if err != nil {
-		return AggreagateStats{}, err
-	} else if exists == 0 {
-		return AggreagateStats{}, errors.New("Key does not exist")
-	}
-
-	// If exists, get cached value
-	s, err := redis.String(conn.Do("GET", aggregateStatsKey))
-	if err != nil {
-		return AggreagateStats{}, err
-	}
-	var stats AggreagateStats
-	if err := json.Unmarshal([]byte(s), &stats); err != nil {
-		return AggreagateStats{}, err
-	}
-	return stats, nil
-}
-
-// UpdateAggregateStats will be called in intervals to analyzee and update the cache for aggregate stats
+// UpdateAggregateStats will be called at certain time intervals to start calculate and analyze all records
+// and update the aggregateStats field in the Stats cache
 func (svc *Service) UpdateAggregateStats() error {
 	overtimeCount := 0
 	overtimeIDs := make([]string, 0)
@@ -151,20 +131,27 @@ func (svc *Service) UpdateAggregateStats() error {
 			adminPerformance[request.Admin] = new(Performance)
 		}
 	}
-	var stats = AggreagateStats{
+	var aggreagateStats = AggreagateStats{
 		OvertimeCount:    overtimeCount,
 		OvertimeIDs:      overtimeIDs,
 		AdminPerformance: adminPerformance,
 	}
 	// serialize objects to JSON
-	json, err := json.Marshal(stats)
+	json, err := json.Marshal(aggreagateStats)
 	if err != nil {
 		return err
 	}
 	conn := svc.pool.Get()
-	_, err = conn.Do("SET", aggregateStatsKey, json)
+	defer conn.Close()
+	_, err = conn.Do("HMSET", statsKey, aggregateStatusField, json)
 	if err != nil {
 		return err
+	}
+	err = svc.BroadcastStats()
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"err": err.Error(),
+		}).Error("Unable to broadcast event for aggregate stats update")
 	}
 	return nil
 }
@@ -193,7 +180,7 @@ func (svc *Service) GetAllRequests() ([]types.WhitelistRequest, error) {
 	return requests, nil
 }
 
-// UpdateAllRequests updates the cached value by fetching from db once
+// UpdateAllRequests updates the cached value of all requests by fetching from db once
 func (svc *Service) UpdateAllRequests() error {
 	requests, err := svc.dbService.GetRequests(-1, bson.D{{}})
 	if err != nil {
@@ -212,30 +199,43 @@ func (svc *Service) UpdateAllRequests() error {
 	return nil
 }
 
-// GetRealTimeStats get the real-time stats from cache
-func (svc *Service) GetRealTimeStats() (RealTimeStats, error) {
+// getStats get both real-time and aggregate stats from cache and unmarshal into struct
+func (svc *Service) getStats() (Stats, error) {
 	conn := svc.pool.Get()
 	defer conn.Close()
 	values, err := redis.Values(conn.Do("HGETALL", statsKey))
 	if err != nil {
-		return RealTimeStats{}, err
+		return Stats{}, err
 	}
 
-	var stats RealTimeStats
+	var stats Stats
 	err = redis.ScanStruct(values, &stats)
 	if err != nil {
-		return RealTimeStats{}, err
+		return Stats{}, err
 	}
+	// Need to manually unmarshal AggregateStats as it is a nested struct
+	value, err := redis.Values(conn.Do("HMGET", statsKey, aggregateStatusField))
+	// redis.Values returns []interface{}
+	aggregateStatsStr := fmt.Sprintf("%s", value[0])
+	if err != nil {
+		return Stats{}, err
+	}
+	var aggregateStats AggreagateStats
+	err = json.Unmarshal([]byte(aggregateStatsStr), &aggregateStats)
+	if err != nil {
+		return Stats{}, err
+	}
+	stats.AggreagateStats = aggregateStats
 	return stats, nil
 }
 
-// UpdateRealTimeStats makes proper change to the stats exposed to the mgmt dashboard according
-// to the current status of the request
+// UpdateRealTimeStats makes proper change to the real-time portion of the stats in the cache
+// depending on changes on the system
 func (svc *Service) UpdateRealTimeStats(request types.WhitelistRequest) error {
 	for n := 1; n <= maxRetry; n++ {
 		conn := svc.pool.Get()
 		defer conn.Close()
-		stats, err := svc.GetRealTimeStats()
+		stats, err := svc.getStats()
 		if err != nil {
 			return err
 		}
@@ -332,7 +332,7 @@ func (svc *Service) UpdateRealTimeStats(request types.WhitelistRequest) error {
 		}
 		// After a successful update, broadcast the new stats to clients
 		// who are listening for the stats update via ServerSideEvent http server
-		err = svc.BroadcastViaSSE()
+		err = svc.BroadcastStats()
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				"err": err.Error(),
@@ -343,9 +343,9 @@ func (svc *Service) UpdateRealTimeStats(request types.WhitelistRequest) error {
 	return errors.New("Unable to update stats. Give up")
 }
 
-// BroadcastViaSSE will push the updated real-time stats data to the client via SeverSideEnvent
-func (svc *Service) BroadcastViaSSE() error {
-	stats, err := svc.GetRealTimeStats()
+// BroadcastStats will push the current state of stats in cache to clients listening for SSE
+func (svc *Service) BroadcastStats() error {
+	stats, err := svc.getStats()
 	if err != nil {
 		return err
 	}
@@ -357,7 +357,7 @@ func (svc *Service) BroadcastViaSSE() error {
 	return nil
 }
 
-// SyncStats sync cache value with current db status. Should run once during startup
+// SyncStats will run once during startup to synchronize/ initilize everything stats related
 func (svc *Service) SyncStats() error {
 	// Sync all requets from db to cache
 	err := svc.UpdateAllRequests()

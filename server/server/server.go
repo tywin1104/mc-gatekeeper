@@ -92,7 +92,6 @@ func (svc *Service) routes() {
 	external := svc.router.PathPrefix("/api/v1/requests").Subrouter()
 	external.HandleFunc("/", svc.HandleCreateRequest()).Methods("POST")
 	external.Handle("/stats/events", svc.sseServer).Methods("GET")
-	external.HandleFunc("/stats/aggregate", svc.HandleGetAggregateStats()).Methods("GET")
 	external.HandleFunc("/{requestIdEncoded}", svc.HandleGetRequestByID()).Methods("GET")
 	external.HandleFunc("/{requestIdEncoded}", svc.HandlePatchRequestByID()).Methods("PATCH").Queries("adm", "{adm}")
 
