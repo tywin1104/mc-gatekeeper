@@ -139,7 +139,7 @@ func (svc *Service) validateCreateRequest(newRequest *types.WhitelistRequest) (i
 	// Prevent new request from a approved or pending username
 	foundRequests, err := svc.dbService.GetRequests(-1, bson.M{
 		"username": newRequest.Username,
-		"status":   bson.M{"$in": []string{"Pending", "Approved"}},
+		"status":   bson.M{"$in": []string{"Pending", "Approved", "Banned"}},
 	})
 	if err != nil {
 		svc.logger.WithFields(logrus.Fields{
@@ -150,14 +150,18 @@ func (svc *Service) validateCreateRequest(newRequest *types.WhitelistRequest) (i
 	}
 	if len(foundRequests) > 0 {
 		var message string
-		if foundRequests[0].Status == "Approved" {
+		foundRequest := foundRequests[0]
+		if foundRequest.Status == "Approved" {
 			message = "The request associated with this username is already approved"
 			return http.StatusConflict, errors.New(message)
-		} else {
+		} else if foundRequest.Status == "Pending" {
 			message = "There is a pending request associated with this username. " +
 				"You can not submit another request at this time. If you haven't received " +
 				"result within 24 hours, please contact admin"
 			return http.StatusUnprocessableEntity, errors.New(message)
+		} else if foundRequest.Status == "Banned" {
+			message = "The user has been banned from the server"
+			return http.StatusForbidden, errors.New(message)
 		}
 	}
 	return http.StatusOK, nil

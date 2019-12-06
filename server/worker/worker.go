@@ -203,6 +203,10 @@ func (worker *Worker) runLoop() {
 					worker.processDenial(d, whitelistRequest)
 				case "Pending":
 					worker.processNewRequest(d, whitelistRequest)
+				case "Deactivated":
+					worker.processDeactivate(d, whitelistRequest)
+				case "Banned":
+					worker.processBan(d, whitelistRequest)
 				}
 			}
 		}
@@ -237,7 +241,7 @@ func (worker *Worker) processApproval(d amqp.Delivery, request types.WhitelistRe
 
 	worker.updateCache(request)
 	// Concrete whitelist action on the game server
-	err := worker.whitelistUser(request.Username)
+	err := worker.issueRCON("whitelist add " + request.Username)
 	if err != nil {
 		worker.logger.WithFields(logrus.Fields{
 			"username": request.Username,
@@ -271,6 +275,50 @@ func (worker *Worker) processDenial(d amqp.Delivery, request types.WhitelistRequ
 		return
 	}
 	d.Ack(false)
+}
+
+// Ban will permanately ban a user from the server and woll prevent
+// applications coming from that user
+func (worker *Worker) processBan(d amqp.Delivery, request types.WhitelistRequest) {
+	worker.logger.WithFields(logrus.Fields{
+		"username": request.Username,
+		"ID":       request.ID,
+		"Type":     "Ban Task",
+	}).Info("Received new task")
+	worker.updateCache(request)
+	err := worker.issueRCON("ban " + request.Username)
+	if err != nil {
+		worker.logger.WithFields(logrus.Fields{
+			"username": request.Username,
+			"err":      err.Error(),
+		}).Error("Unable to ban user on the game server")
+		d.Nack(false, false)
+		return
+	}
+	d.Ack(false)
+
+}
+
+// Deactivate a user will un-whitelist that username. But allow further applications
+// from the same user
+func (worker *Worker) processDeactivate(d amqp.Delivery, request types.WhitelistRequest) {
+	worker.logger.WithFields(logrus.Fields{
+		"username": request.Username,
+		"ID":       request.ID,
+		"Type":     "Deactivate Task",
+	}).Info("Received new task")
+	worker.updateCache(request)
+	err := worker.issueRCON("whitelist remove " + request.Username)
+	if err != nil {
+		worker.logger.WithFields(logrus.Fields{
+			"username": request.Username,
+			"err":      err.Error(),
+		}).Error("Unable to deactivate user on the game server")
+		d.Nack(false, false)
+		return
+	}
+	d.Ack(false)
+
 }
 
 //Nack: successful ops emails less than threshold; confirmation email does not count
@@ -434,10 +482,10 @@ func (worker *Worker) getTargetOps() []string {
 	return ops[:n]
 }
 
-// issue whitelist command againest a user with retries
-func (worker *Worker) whitelistUser(username string) error {
+// issue  command againest a user on the game server with retries
+func (worker *Worker) issueRCON(command string) error {
 	err := try.Do(func(attempt int) (bool, error) {
-		_, e := worker.rconClient.SendCommand("whitelist add " + username)
+		_, e := worker.rconClient.SendCommand(command)
 		if e != nil {
 			time.Sleep(5 * time.Second) // 5 seconds delay between retrys
 		}
@@ -447,8 +495,8 @@ func (worker *Worker) whitelistUser(username string) error {
 		return err
 	}
 	worker.logger.WithFields(logrus.Fields{
-		"username": username,
-	}).Info("User has been whitelisted successfully")
+		"command": command,
+	}).Info("Command has been issued successfully on the game server")
 	return nil
 }
 func deserialize(b []byte) (types.WhitelistRequest, error) {

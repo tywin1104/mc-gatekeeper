@@ -26,6 +26,9 @@ const useStyles = theme => ({
 class Landing extends React.Component {
   constructor(props) {
     super(props);
+    this.state = {
+      requests: null
+    };
   }
 
   render() {

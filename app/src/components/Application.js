@@ -51,6 +51,8 @@ class Application extends React.Component {
     this.ERR_INVALID_USERNAME = i18next.t("Splash.InvalidUsernameErrMsg");
     this.ERR_EMPTY_USERNAME = i18next.t("Splash.EmptyUsernameErrMsg");
     this.ERR_REPEAT_REQUEST = i18next.t("Splash.RepeatRequestErrMsg");
+    this.ERR_BANNED =
+      "Sorry. The user is been banned from the server. Try to contact server admins for details";
     this.ERR_ALREADY_APPROVED = i18next.t(
       "Splash.RequestAlreadyApprovedErrMsg"
     );
@@ -98,6 +100,11 @@ class Application extends React.Component {
                 // 409 Conflict indicates the request with this username is already approved
                 this.setState({
                   errorMsg: this.ERR_ALREADY_APPROVED
+                });
+              } else if (statusCode === 403) {
+                // 403 Forbidden is returned when the requesting user is banned from server
+                this.setState({
+                  errorMsg: this.ERR_BANNED
                 });
               } else if (statusCode === 500) {
                 this.setState({
