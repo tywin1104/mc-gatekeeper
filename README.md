@@ -10,9 +10,9 @@
     <img src="images/gatekeeper.png" alt="Logo" >
   </a>
 
-  <h1 align="center">Minecraft GateKeeper</h1>
+  <h2 align="center">Minecraft GateKeeper</h1>
 
-  <h3 align="center">
+  <h4 align="center">
     An all-in-one reliable whitelist application system for your Minecraft server
     <br />
     ·
@@ -52,9 +52,9 @@ What's provided out of the box:
 - Real-time confirmation and notification emails to users for application status update
 - One-click processing workflow for Ops to deny/approve user applications
 - Automatic grant whitelist for approved users on the server via RCON
-- Management and monitoring dashboard for the server owner
+- Real-time management and monitoring dashboard for the server owner
 - Rich configuration and customization options (see below)
-- Multi-language support with builtin Chinese translation
+- Multi-language support
 
 On top of these, it is implemented with security(encryotion; private endpoints token-based authentication) and fault-torlance(retry operations; message queue connection recovery mechaism) in mind.
 
@@ -92,7 +92,8 @@ On top of these, it is implemented with security(encryotion; private endpoints t
 #### For Server Owner:
 
 - Server owner could view/monitor/manage all applications through the management dashboard which are only accessible with configured root credentials
-  ![Image of Yaktocat](images/Dashboard.png)
+  ![Image of Yaktocat](images/Dashboard1.png)
+  ![Image of Yaktocat](images/Dashboard2.png)
 
 - Key features:
   - Centralized dashboard to manage all applications, view aggregate stats.
@@ -101,9 +102,7 @@ On top of these, it is implemented with security(encryotion; private endpoints t
 
 ## Deployment & Configurations
 
-For simple deployment, you could follow the steps below using docker compose. I've also provided Helm chart to deploy on Kubernetes cluster for more reliable production use case(advanced). For a brief  walkthrough for Kubernetes deployment please check out the wiki page:
-
- https://github.com/tywin1104/mc-gatekeeper/wiki/Walk-through-deployment-in-Kubernetes-cluster-with-Helm
+You can follow the below steps to get the application up and running easily:
 
 #### Deployment using docker-compse
  - Clone the repo onto your workstation / Linux virtual machine(EC2, droplet...)
@@ -111,17 +110,17 @@ For simple deployment, you could follow the steps below using docker compose. I'
  - Create `config.yaml` inside the `server` directory. Fill in the values according to your setup. (see config_sample.yaml for reference)
 
    `mongodbConn: mongodb://mongo:27017`
+
    `rabbitMQConn: amqp://guest:guest@rabbitmq`
 
-   Keep these two configuration value as above.
+   `redisConn: cache:6379`
+
+   Keep these three configuration value as above.
  - Inside `docker-compose.yaml`, change `RECAPTCHA_SITEKEY` to your recaptcha sitekey(v2 invisible)
  - If you are running in a machine with domain name DNS configured, you need to change `FRONTEND_DEPLOYED_URL` in `docker-compose.yaml` to be your domain address instead of localhost.
  - run `docker-compose up -d`
  - Once the process is finished, go to `http://localhost` or your configured domain address to view the application
 
-
-
-**Note**: The web app part (frontend) is intended to be publicly accessible across the Internet and the backend server API should be consumed only by the client application for security reasons. A running MongoDB and RabbitMQ instance are required components for the system.
 
 ## Local Dev Setup
 
