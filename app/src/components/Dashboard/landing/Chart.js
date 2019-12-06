@@ -13,7 +13,7 @@ import moment from "moment";
 import i18next from "i18next";
 let _ = require("lodash");
 
-function createData(time, amount) {
+function _createData(time, amount) {
   return { time, amount };
 }
 
@@ -40,10 +40,10 @@ export default function Chart(props) {
   for (let i = 0; i < daysAgo.length; i++) {
     let date = daysAgo[i];
     if (Object.prototype.hasOwnProperty.call(groupedResults, date)) {
-      data.push(createData(date, groupedResults[date].length));
+      data.push(_createData(date, groupedResults[date].length));
     } else {
       // If no new requests for today, set graph line height to zero
-      data.push(createData(date, 0));
+      data.push(_createData(date, 0));
     }
   }
 

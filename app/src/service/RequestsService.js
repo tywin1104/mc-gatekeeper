@@ -37,6 +37,7 @@ class RequestsService {
   getStatsEventSource() {
     return new EventSource(`${API_HOST}/api/v1/requests/stats/events`);
   }
+
   createRequest(data) {
     return axios.post(`${API_HOST}/api/v1/requests/`, data);
   }

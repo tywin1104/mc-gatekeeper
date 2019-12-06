@@ -37,25 +37,24 @@ type Service struct {
 // Stats is composed of both thre real-time stats that got updated in real-time after each
 // application status change AND aggregate stats that are analyzed and updated at a regular interval
 type Stats struct {
-	Pending                      int64           `redis:"pending" json:"pending"`
-	Denied                       int64           `redis:"denied" json:"denied"`
-	Approved                     int64           `redis:"approved" json:"approved"`
-	AverageResponseTimeInMinutes float64         `redis:"averageResponseTimeInMinutes" json:"averageResponseTimeInMinutes"`
-	TotalResponseTimeInMinutes   float64         `redis:"totalResponseTimeInMinutes" json:"totalResponseTimeInMinutes"`
-	MaleCount                    int64           `redis:"maleCount" json:"maleCount"`
-	FemaleCount                  int64           `redis:"femaleCount" json:"femaleCount"`
-	OtherGenderCount             int64           `redis:"otherGenderCount" json:"otherGenderCount"`
-	AgeGroup1Count               int64           `redis:"ageGroup1Count" json:"ageGroup1Count"`
-	AgeGroup2Count               int64           `redis:"ageGroup2Count" json:"ageGroup2Count"`
-	AgeGroup3Count               int64           `redis:"ageGroup3Count" json:"ageGroup3Count"`
-	AgeGroup4Count               int64           `redis:"ageGroup4Count" json:"ageGroup4Count"`
-	AggreagateStats              AggreagateStats `redis:"-" json:"aggreagateStats"`
+	Pending                      int64          `redis:"pending" json:"pending"`
+	Denied                       int64          `redis:"denied" json:"denied"`
+	Approved                     int64          `redis:"approved" json:"approved"`
+	AverageResponseTimeInMinutes float64        `redis:"averageResponseTimeInMinutes" json:"averageResponseTimeInMinutes"`
+	TotalResponseTimeInMinutes   float64        `redis:"totalResponseTimeInMinutes" json:"totalResponseTimeInMinutes"`
+	MaleCount                    int64          `redis:"maleCount" json:"maleCount"`
+	FemaleCount                  int64          `redis:"femaleCount" json:"femaleCount"`
+	OtherGenderCount             int64          `redis:"otherGenderCount" json:"otherGenderCount"`
+	AgeGroup1Count               int64          `redis:"ageGroup1Count" json:"ageGroup1Count"`
+	AgeGroup2Count               int64          `redis:"ageGroup2Count" json:"ageGroup2Count"`
+	AgeGroup3Count               int64          `redis:"ageGroup3Count" json:"ageGroup3Count"`
+	AgeGroup4Count               int64          `redis:"ageGroup4Count" json:"ageGroup4Count"`
+	AggregateStats               AggregateStats `redis:"-" json:"aggregateStats"`
 }
 
-// AggreagateStats are records of some time-consuming results and got updated at regular intervals
-type AggreagateStats struct {
+// AggregateStats are records of some time-consuming results and got updated at regular intervals
+type AggregateStats struct {
 	OvertimeCount    int                     `json:"overtimeCount"`
-	OvertimeIDs      []string                `json:"overtimeIDs"`
 	AdminPerformance map[string]*Performance `json:"adminPerformance"`
 }
 
@@ -100,7 +99,6 @@ func NewService(db *db.Service, sseServer *sse.Broker) *Service {
 // and update the aggregateStats field in the Stats cache
 func (svc *Service) UpdateAggregateStats() error {
 	overtimeCount := 0
-	overtimeIDs := make([]string, 0)
 
 	pendingRequests, err := svc.dbService.GetRequests(-1, bson.M{"status": "Pending"})
 	if err != nil {
@@ -111,7 +109,6 @@ func (svc *Service) UpdateAggregateStats() error {
 		// check for overtime
 		if currentTime.Sub(pendingRequest.Timestamp).Hours() >= 24 {
 			overtimeCount++
-			overtimeIDs = append(overtimeIDs, pendingRequest.ID.Hex())
 		}
 	}
 	fulfilledRequests, err := svc.dbService.GetRequests(-1, bson.M{
@@ -131,9 +128,8 @@ func (svc *Service) UpdateAggregateStats() error {
 			adminPerformance[request.Admin] = new(Performance)
 		}
 	}
-	var aggreagateStats = AggreagateStats{
+	var aggreagateStats = AggregateStats{
 		OvertimeCount:    overtimeCount,
-		OvertimeIDs:      overtimeIDs,
 		AdminPerformance: adminPerformance,
 	}
 	// serialize objects to JSON
@@ -220,12 +216,12 @@ func (svc *Service) getStats() (Stats, error) {
 	if err != nil {
 		return Stats{}, err
 	}
-	var aggregateStats AggreagateStats
+	var aggregateStats AggregateStats
 	err = json.Unmarshal([]byte(aggregateStatsStr), &aggregateStats)
 	if err != nil {
 		return Stats{}, err
 	}
-	stats.AggreagateStats = aggregateStats
+	stats.AggregateStats = aggregateStats
 	return stats, nil
 }
 

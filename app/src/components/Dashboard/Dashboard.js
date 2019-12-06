@@ -21,6 +21,8 @@ import RequestsService from "../../service/RequestsService";
 import i18next from "i18next";
 import Landing from "./landing/landing";
 import Metrics from "./metrics/metrics";
+import { ThemeProvider } from "@material-ui/styles";
+import theme from "./theme";
 
 const drawerWidth = 240;
 const useStyles = theme => ({
@@ -109,7 +111,7 @@ class Dashboard extends React.Component {
       open: true,
       requests: null,
       auth_header: {},
-      view: "landing"
+      view: "metrics"
     };
   }
 
@@ -190,82 +192,96 @@ class Dashboard extends React.Component {
       view = <Metrics requests={this.state.requests}></Metrics>;
     }
     return (
-      <div className={classes.root}>
-        <CssBaseline />
-        <AppBar
-          position="absolute"
-          className={clsx(
-            classes.appBar,
-            this.state.open && classes.appBarShift
-          )}
-        >
-          <Toolbar className={classes.toolbar}>
-            <IconButton
-              edge="start"
-              color="inherit"
-              aria-label="open drawer"
-              onClick={this.handleDrawerOpen}
-              className={clsx(
-                classes.menuButton,
-                this.state.open && classes.menuButtonHidden
-              )}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Typography
-              component="h1"
-              variant="h6"
-              color="inherit"
-              noWrap
-              className={classes.title}
-            >
-              {i18next.t("Dashboard.Title")}
-            </Typography>
-          </Toolbar>
-        </AppBar>
-        <Drawer
-          variant="permanent"
-          classes={{
-            paper: clsx(
-              classes.drawerPaper,
-              !this.state.open && classes.drawerPaperClose
-            )
-          }}
-          open={this.state.open}
-        >
-          <div className={classes.toolbarIcon}>
-            <IconButton onClick={this.handleDrawerClose}>
-              <ChevronLeftIcon />
-            </IconButton>
-          </div>
-          <Divider />
-          <List>
-            <div>
-              <ListItem button onClick={() => this.handleSwitchView("landing")}>
-                <ListItemIcon>
-                  <DashboardIcon />
-                </ListItemIcon>
-                <ListItemText primary="Dashboard" />
-              </ListItem>
-              <ListItem button onClick={() => this.handleSwitchView("metrics")}>
-                <ListItemIcon>
-                  <EqualizerIcon />
-                </ListItemIcon>
-                <ListItemText primary="Real-Time Metrics" />
-              </ListItem>
+      <ThemeProvider theme={theme}>
+        <div className={classes.root}>
+          <CssBaseline />
+          <AppBar
+            position="absolute"
+            className={clsx(
+              classes.appBar,
+              this.state.open && classes.appBarShift
+            )}
+          >
+            <Toolbar className={classes.toolbar}>
+              <IconButton
+                edge="start"
+                color="inherit"
+                aria-label="open drawer"
+                onClick={this.handleDrawerOpen}
+                className={clsx(
+                  classes.menuButton,
+                  this.state.open && classes.menuButtonHidden
+                )}
+              >
+                <MenuIcon />
+              </IconButton>
+              <Typography
+                component="h1"
+                variant="h6"
+                color="inherit"
+                noWrap
+                className={classes.title}
+              >
+                {i18next.t("Dashboard.Title")}
+              </Typography>
+            </Toolbar>
+          </AppBar>
+          <Drawer
+            variant="permanent"
+            classes={{
+              paper: clsx(
+                classes.drawerPaper,
+                !this.state.open && classes.drawerPaperClose
+              )
+            }}
+            open={this.state.open}
+          >
+            <div className={classes.toolbarIcon}>
+              <IconButton onClick={this.handleDrawerClose}>
+                <ChevronLeftIcon />
+              </IconButton>
             </div>
-          </List>
-        </Drawer>
-        <main className={classes.content}>
-          <div className={classes.appBarSpacer} />
-          {view}
-          <Typography variant="body2" color="textSecondary" align="center">
-            {"Copyright © "}
-            <Link color="inherit">Your Website</Link> {new Date().getFullYear()}
-            {"."}
-          </Typography>
-        </main>
-      </div>
+            <Divider />
+            <List>
+              <div>
+                <ListItem
+                  button
+                  onClick={() => this.handleSwitchView("landing")}
+                >
+                  <ListItemIcon>
+                    <DashboardIcon />
+                  </ListItemIcon>
+                  <ListItemText primary="Dashboard" />
+                </ListItem>
+                <ListItem
+                  button
+                  onClick={() => this.handleSwitchView("metrics")}
+                >
+                  <ListItemIcon>
+                    <EqualizerIcon />
+                  </ListItemIcon>
+                  <ListItemText primary="Real-Time Metrics" />
+                </ListItem>
+              </div>
+            </List>
+          </Drawer>
+          <main className={classes.content}>
+            <div className={classes.appBarSpacer} />
+            {view}
+            <Typography
+              variant="body2"
+              color="textSecondary"
+              align="center"
+              style={{ paddingTop: "3%" }}
+            >
+              {"Copyright © "}
+              <Link color="inherit">Your Website</Link>{" "}
+              {new Date().getFullYear()}
+              {"."}
+            </Typography>
+          </main>
+        </div>
+      </ThemeProvider>
     );
   }
 }
