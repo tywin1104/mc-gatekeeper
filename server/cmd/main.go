@@ -128,7 +128,7 @@ func watchConfig(log *logrus.Logger) {
 }
 
 func aggregatingStats(cache *cache.Service) {
-	for range time.Tick(10 * time.Second) {
+	for range time.Tick(100000 * time.Second) {
 		go func() {
 			err := cache.UpdateAggregateStats()
 			if err != nil {

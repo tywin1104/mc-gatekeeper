@@ -111,7 +111,7 @@ class Dashboard extends React.Component {
       open: true,
       requests: null,
       auth_header: {},
-      view: "metrics"
+      view: "landing"
     };
   }
 
@@ -164,13 +164,16 @@ class Dashboard extends React.Component {
     });
   };
 
-  handleChangeRequestStatus = (requestID, newStatus) => {
+  // TODO: how to make it into multiple arguments?
+  handleChangeRequestStatus = requestIDandUpdatedRequest => {
+    let requestID = requestIDandUpdatedRequest.requestID;
+    let updatedRequest = requestIDandUpdatedRequest.request;
     let requests = this.state.requests;
-    requests.forEach(request => {
-      if (request._id === requestID) {
-        request.status = newStatus;
+    for (var i = 0; i < requests.length; i++) {
+      if (requests[i]._id === requestID) {
+        requests[i] = updatedRequest;
       }
-    });
+    }
     this.setState({ requests });
   };
 
@@ -189,7 +192,7 @@ class Dashboard extends React.Component {
         ></Landing>
       );
     } else if (this.state.view === "metrics") {
-      view = <Metrics requests={this.state.requests}></Metrics>;
+      view = <Metrics></Metrics>;
     }
     return (
       <ThemeProvider theme={theme}>

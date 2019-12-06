@@ -22,31 +22,37 @@ class Table extends React.Component {
     };
   }
 
-  onApprove = (event, request) => {
+  onStatusChange = (event, request, newStatus) => {
     event.preventDefault();
     let requestID = request._id;
-    RequestsService.approveRequestAdmin(requestID, this.props.config)
+    RequestsService.handleStatusChangeByAdmin(
+      requestID,
+      this.props.config,
+      newStatus
+    )
       .then(res => {
         if (res.status === 200) {
-          this.props.handleChangeRequestStatus(requestID, "Approved");
+          this.props.handleChangeRequestStatus({
+            requestID: requestID,
+            // Mock the updated request here to update the parent state
+            request: {
+              ...request,
+              status: newStatus,
+              processedTimestamp: new Date().toISOString(),
+              admin: "admin"
+            }
+          });
         }
       })
       .catch(error => {
-        alert(i18next.t("Dashboard.Table.OperationErrMsg"));
-      });
-  };
-
-  onDeny = (event, request) => {
-    event.preventDefault();
-    let requestID = request._id;
-    RequestsService.denyRequestAdmin(requestID, this.props.config)
-      .then(res => {
-        if (res.status === 200) {
-          this.props.handleChangeRequestStatus(requestID, "Denied");
+        if (error.response) {
+          if (error.response.status === 500) {
+            alert("Internal Server Error");
+          } else if (error.response.status === 401) {
+            alert("Login session expired. Please login again");
+            this.props.history.push("/login");
+          }
         }
-      })
-      .catch(error => {
-        alert(i18next.t("Dashboard.Table.OperationErrMsg"));
       });
   };
 
@@ -172,14 +178,30 @@ class Table extends React.Component {
             rowData => ({
               icon: "check",
               tooltip: i18next.t("Dashboard.Table.ApproveTooltip"),
-              onClick: (event, rowData) => this.onApprove(event, rowData),
-              disabled: rowData.status !== "Pending"
+              onClick: (event, rowData) =>
+                this.onStatusChange(event, rowData, "Approved"),
+              hidden: rowData.status !== "Pending"
             }),
             rowData => ({
               icon: "close",
               tooltip: i18next.t("Dashboard.Table.DenyTooltip"),
-              onClick: (event, rowData) => this.onDeny(event, rowData),
-              disabled: rowData.status !== "Pending"
+              onClick: (event, rowData) =>
+                this.onStatusChange(event, rowData, "Denied"),
+              hidden: rowData.status !== "Pending"
+            }),
+            rowData => ({
+              icon: "cancel",
+              tooltip: "Deactivate the user",
+              onClick: (event, rowData) =>
+                this.onStatusChange(event, rowData, "Deactivated"),
+              hidden: rowData.status !== "Approved"
+            }),
+            rowData => ({
+              icon: "delete",
+              tooltip: "Ban the user",
+              onClick: (event, rowData) =>
+                this.onStatusChange(event, rowData, "Banned"),
+              hidden: rowData.status !== "Approved"
             })
           ]}
           options={{

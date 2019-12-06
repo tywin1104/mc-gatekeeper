@@ -40,6 +40,7 @@ type Stats struct {
 	Pending                      int64          `redis:"pending" json:"pending"`
 	Denied                       int64          `redis:"denied" json:"denied"`
 	Approved                     int64          `redis:"approved" json:"approved"`
+	Banned                       int64          `redis:"banned" json:"banned"`
 	AverageResponseTimeInMinutes float64        `redis:"averageResponseTimeInMinutes" json:"averageResponseTimeInMinutes"`
 	TotalResponseTimeInMinutes   float64        `redis:"totalResponseTimeInMinutes" json:"totalResponseTimeInMinutes"`
 	MaleCount                    int64          `redis:"maleCount" json:"maleCount"`
@@ -243,6 +244,7 @@ func (svc *Service) UpdateRealTimeStats(request types.WhitelistRequest) error {
 		oldApprovedCount := stats.Approved
 		oldDeniedCount := stats.Denied
 		oldPendingCount := stats.Pending
+		oldBannedCount := stats.Banned
 		oldTotalResponseTimeInMinutes := stats.TotalResponseTimeInMinutes
 		newMaleCount := stats.MaleCount
 		newFemaleCount := stats.FemaleCount
@@ -252,7 +254,7 @@ func (svc *Service) UpdateRealTimeStats(request types.WhitelistRequest) error {
 		newAgeGroup2Count := stats.AgeGroup2Count
 		newAgeGroup3Count := stats.AgeGroup3Count
 		newAgeGroup4Count := stats.AgeGroup4Count
-		var newApprovedCount, newDeniedCount, newPendingCount int64
+		var newApprovedCount, newDeniedCount, newPendingCount, newBannedCount int64
 		var newTotalResponseTimeInMinutes, newAverageResponseTimeInMinutes float64
 		var args = make([]interface{}, 0)
 		args = append(args, statsKey)
@@ -297,6 +299,63 @@ func (svc *Service) UpdateRealTimeStats(request types.WhitelistRequest) error {
 		case "Pending":
 			newPendingCount = oldPendingCount + 1
 			args = append(args, []interface{}{"pending", newPendingCount}...)
+		case "Banned":
+			newBannedCount = oldBannedCount + 1
+			newApprovedCount = oldApprovedCount - 1
+			// /......
+			args = append(args, []interface{}{"approved", newApprovedCount, "banned", newBannedCount}...)
+			switch request.Gender {
+			case "male":
+				newMaleCount--
+			case "female":
+				newFemaleCount--
+			default:
+				newOtherGenderCount--
+			}
+			args = append(args, []interface{}{"maleCount", newMaleCount, "femaleCount", newFemaleCount, "otherGenderCount", newOtherGenderCount}...)
+
+			// Update age group metric
+			age := request.Age
+			var step int64 = ageGroupStep
+			if 0 <= age && age < step {
+				newAgeGroup1Count--
+			} else if step <= age && age < step*2 {
+				newAgeGroup2Count--
+			} else if step*2 <= age && age < step*3 {
+				newAgeGroup3Count--
+			} else {
+				newAgeGroup4Count--
+			}
+			args = append(args, []interface{}{"ageGroup1Count", newAgeGroup1Count, "ageGroup2Count", newAgeGroup2Count, "ageGroup3Count", newAgeGroup3Count, "ageGroup4Count", newAgeGroup4Count}...)
+			//......
+		case "Deactivated":
+			newApprovedCount = oldApprovedCount - 1
+			args = append(args, []interface{}{"approved", newApprovedCount}...)
+			//......
+			switch request.Gender {
+			case "male":
+				newMaleCount--
+			case "female":
+				newFemaleCount--
+			default:
+				newOtherGenderCount--
+			}
+			args = append(args, []interface{}{"maleCount", newMaleCount, "femaleCount", newFemaleCount, "otherGenderCount", newOtherGenderCount}...)
+
+			// Update age group metric
+			age := request.Age
+			var step int64 = ageGroupStep
+			if 0 <= age && age < step {
+				newAgeGroup1Count--
+			} else if step <= age && age < step*2 {
+				newAgeGroup2Count--
+			} else if step*2 <= age && age < step*3 {
+				newAgeGroup3Count--
+			} else {
+				newAgeGroup4Count--
+			}
+			args = append(args, []interface{}{"ageGroup1Count", newAgeGroup1Count, "ageGroup2Count", newAgeGroup2Count, "ageGroup3Count", newAgeGroup3Count, "ageGroup4Count", newAgeGroup4Count}...)
+			//.....
 		}
 		// Only update the average reponse time stats if the request is being fulfilled
 		if newTotalResponseTimeInMinutes != 0 {
@@ -379,7 +438,7 @@ func (svc *Service) SyncStats() error {
 		}
 		// Recalculate the stats for all requests at the moment
 		// And update the stats value in cache
-		var approved, denied, pending int64
+		var approved, denied, pending, banned int64
 		var totalResponseTimeInMinutes float64
 		var maleCount, femaleCount, otherGenderCount int64
 		var ageGroup1Count, ageGroup2Count, ageGroup3Count, ageGroup4Count int64
@@ -415,6 +474,8 @@ func (svc *Service) SyncStats() error {
 				totalResponseTimeInMinutes += request.ProcessedTimestamp.Sub(request.Timestamp).Minutes()
 			case "Pending":
 				pending++
+			case "Banned":
+				banned++
 			}
 		}
 		var averageResponseTimeInMinutes float64
@@ -431,6 +492,7 @@ func (svc *Service) SyncStats() error {
 			"HMSET", statsKey,
 			"pending", pending, "denied", denied,
 			"approved", approved,
+			"banned", banned,
 			"averageResponseTimeInMinutes", averageResponseTimeInMinutes,
 			"totalResponseTimeInMinutes", totalResponseTimeInMinutes,
 			"maleCount", maleCount,

@@ -10,11 +10,11 @@ class RequestsService {
     return axios.get(`${API_HOST}/api/v1/internal/requests`, config);
   }
 
-  approveRequestAdmin(requestID, config) {
+  handleStatusChangeByAdmin(requestID, config, newStatus) {
     return axios.patch(
       `${API_HOST}/api/v1/internal/requests/${requestID}`,
       {
-        status: "Approved",
+        status: newStatus,
         processedTimestamp: new Date().toISOString(),
         admin: "admin"
       },
@@ -22,17 +22,6 @@ class RequestsService {
     );
   }
 
-  denyRequestAdmin(requestID, config) {
-    return axios.patch(
-      `${API_HOST}/api/v1/internal/requests/${requestID}`,
-      {
-        status: "Denied",
-        processedTimestamp: new Date().toISOString(),
-        admin: "admin"
-      },
-      config
-    );
-  }
   ///////////////////////////////External API service call below///////////////////
   getStatsEventSource() {
     return new EventSource(`${API_HOST}/api/v1/requests/stats/events`);

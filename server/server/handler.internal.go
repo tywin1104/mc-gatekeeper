@@ -51,10 +51,8 @@ func (svc *Service) HandleInternalPatchRequestByID() http.HandlerFunc {
 			http.Error(w, "Unable to read request body", http.StatusBadRequest)
 			return
 		}
-		// Only update a request if its status is still pending
 		foundRequests, err := svc.dbService.GetRequests(-1, bson.M{
-			"_id":    _id,
-			"status": "Pending",
+			"_id": _id,
 		})
 		if err != nil {
 			http.Error(w, "Unable to get request", http.StatusInternalServerError)
@@ -71,7 +69,7 @@ func (svc *Service) HandleInternalPatchRequestByID() http.HandlerFunc {
 			w.WriteHeader(http.StatusOK)
 			json.NewEncoder(w).Encode(msg)
 		} else {
-			msg := map[string]interface{}{"message": "Invalid requestId or the target request is already closed"}
+			msg := map[string]interface{}{"message": "Invalid requestId"}
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(msg)
 		}
