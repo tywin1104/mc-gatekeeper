@@ -38,6 +38,14 @@ const StatusGraph = props => {
     {
       name: "Denied",
       count: props.denied
+    },
+    {
+      name: "Deactivated",
+      count: props.deactivated
+    },
+    {
+      name: "Banned",
+      count: props.banned
     }
   ];
 

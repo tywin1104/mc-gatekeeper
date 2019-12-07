@@ -53,12 +53,8 @@ func (s *Service) CreateRequest(newRequest types.WhitelistRequest) (primitive.Ob
 
 // GetRequests query for whitelistRequests in db
 func (s *Service) GetRequests(limit int64, filter interface{}) ([]types.WhitelistRequest, error) {
-	findOptions := options.Find()
-	if limit != -1 {
-		findOptions.SetLimit(limit)
-	}
 	collection := s.db.Database("mc-whitelist").Collection("requests")
-	cur, err := collection.Find(context.TODO(), filter, findOptions)
+	cur, err := collection.Find(context.TODO(), filter, options.Find().SetSort(map[string]int{"timestamp": -1}))
 	if err != nil {
 		return nil, err
 	}

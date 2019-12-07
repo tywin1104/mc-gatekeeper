@@ -83,7 +83,7 @@ const PerformanceChart = props => {
               />
               <ListItemText
                 secondary={`Average response time is ${admin.averageResponseTimeInMinutes.toFixed(
-                  0
+                  1
                 )} minutes`}
               />
             </ListItem>

@@ -41,7 +41,7 @@ func (svc *Service) HandleAdminSignin() http.HandlerFunc {
 		}
 
 		// Declare the expiration time of the token
-		expirationTime := time.Now().Add(20 * time.Minute)
+		expirationTime := time.Now().Add(60 * time.Minute)
 		// Create the JWT claims, which includes the username and expiry time
 		claims := &claims{
 			Username: creds.Username,

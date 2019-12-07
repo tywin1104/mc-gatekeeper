@@ -63,7 +63,7 @@ const AgeGraph = props => {
 
   return (
     <Card {...rest} className={clsx(classes.root, className)}>
-      <CardHeader title="Age Distribution of Approved Applications" />
+      <CardHeader title="Age Distribution of Players" />
       <Divider />
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>

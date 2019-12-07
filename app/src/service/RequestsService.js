@@ -11,13 +11,11 @@ class RequestsService {
   }
 
   handleStatusChangeByAdmin(requestID, config, newStatus) {
+    let update = {};
+    update.status = newStatus;
     return axios.patch(
       `${API_HOST}/api/v1/internal/requests/${requestID}`,
-      {
-        status: newStatus,
-        processedTimestamp: new Date().toISOString(),
-        admin: "admin"
-      },
+      update,
       config
     );
   }
@@ -40,7 +38,6 @@ class RequestsService {
       `${API_HOST}/api/v1/requests/${requestID}?adm=${admToken}`,
       {
         status: "Approved",
-        processedTimestamp: new Date(),
         note: note
       }
     );
@@ -51,7 +48,6 @@ class RequestsService {
       `${API_HOST}/api/v1/requests/${requestID}?adm=${admToken}`,
       {
         status: "Denied",
-        processedTimestamp: new Date(),
         note: note
       }
     );
