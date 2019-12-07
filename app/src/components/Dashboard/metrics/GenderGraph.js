@@ -102,7 +102,7 @@ const GenderGraph = props => {
 
   return (
     <Card {...rest} className={clsx(classes.root, className)}>
-      <CardHeader title="Gender Distribution of Approved Applications" />
+      <CardHeader title="Gender Distribution of Players" />
       <Divider />
       <CardContent>
         <div>

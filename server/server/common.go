@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -20,9 +21,16 @@ func (svc *Service) updateRequestByID(requestID string, reqBody []byte, admin st
 	json.Unmarshal(reqBody, &requestedChange)
 	// Update the admin field to be the op'e email behind adm email token
 	requestedChange["admin"] = admin
-	// Parse timestamp string into time type
-	processedTimestamp, _ := parseTimestamp(requestedChange["processedTimestamp"])
-	requestedChange["processedTimestamp"] = processedTimestamp
+	// update timestamp metadata according to different type of status change
+	if newStatus, ok := requestedChange["status"]; ok {
+		if newStatus == "Approved" || newStatus == "Denied" {
+			requestedChange["processedTimestamp"] = time.Now()
+			requestedChange["lastUpdatedTimestamp"] = time.Now()
+		} else if newStatus == "Deactivated" || newStatus == "Banned" {
+			requestedChange["lastUpdatedTimestamp"] = time.Now()
+		}
+	}
+
 	_id, _ := primitive.ObjectIDFromHex(requestID)
 	updatedRequest, err := svc.dbService.UpdateRequest(bson.D{{"_id", _id}}, bson.M{
 		"$set": requestedChange,

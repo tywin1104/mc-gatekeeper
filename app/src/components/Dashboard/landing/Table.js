@@ -38,8 +38,9 @@ class Table extends React.Component {
             request: {
               ...request,
               status: newStatus,
-              processedTimestamp: new Date().toISOString(),
-              admin: "admin"
+              processedTimestamp:
+                request.processedTimestamp || new Date().toISOString(),
+              lastUpdatedTimestamp: new Date().toISOString()
             }
           });
         }
@@ -51,6 +52,10 @@ class Table extends React.Component {
           } else if (error.response.status === 401) {
             alert("Login session expired. Please login again");
             this.props.history.push("/login");
+          } else {
+            alert(
+              "Unable to complete the request. Please refresh and try again"
+            );
           }
         }
       });
@@ -71,7 +76,8 @@ class Table extends React.Component {
       { label: "Age", key: "age" },
       { label: "Application Submitted", key: "timestamp" },
       { label: "Status", key: "status" },
-      { label: "Processing Time", key: "processedTimestamp" },
+      { label: "Processed Time", key: "processedTimestamp" },
+      { label: "Last Status Update Time", key: "lastUpdatedTimestamp" },
       { label: "Assignees", key: "assignees" },
       { label: "Admin", key: "admin" },
       { label: "Note", key: "note" },
@@ -94,6 +100,14 @@ class Table extends React.Component {
       } else {
         item.processedTimestamp = moment
           .parseZone(item.processedTimestamp)
+          .local()
+          .format("MM/DD/YYYY HH:mm");
+      }
+      if (item.lastUpdatedTimestamp === "0001-01-01T00:00:00Z") {
+        item.lastUpdatedTimestamp = "N/A";
+      } else {
+        item.lastUpdatedTimestamp = moment
+          .parseZone(item.lastUpdatedTimestamp)
           .local()
           .format("MM/DD/YYYY HH:mm");
       }
@@ -125,6 +139,10 @@ class Table extends React.Component {
             {
               title: i18next.t("Dashboard.Table.Processed"),
               field: "processedTimestamp"
+            },
+            {
+              title: i18next.t("Dashboard.Table.LastUpdatedTimestamp"),
+              field: "lastUpdatedTimestamp"
             },
             { title: i18next.t("Dashboard.Table.Admin"), field: "admin" },
             {

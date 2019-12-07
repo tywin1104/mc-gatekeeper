@@ -3,9 +3,9 @@ import clsx from "clsx";
 import PropTypes from "prop-types";
 import { makeStyles } from "@material-ui/styles";
 import { Card, CardContent, Grid, Typography, Avatar } from "@material-ui/core";
-import SentimentVerySatisfiedIcon from "@material-ui/icons/SentimentVerySatisfied";
-import SentimentVeryDissatisfiedIcon from "@material-ui/icons/SentimentVeryDissatisfied";
-import SentimentSatisfiedIcon from "@material-ui/icons/SentimentSatisfied";
+import HourglassEmptyIcon from "@material-ui/icons/HourglassEmpty";
+import NotInterestedIcon from "@material-ui/icons/NotInterested";
+import CheckCircleIcon from "@material-ui/icons/CheckCircle";
 
 import AlarmOnIcon from "@material-ui/icons/AlarmOn";
 
@@ -45,11 +45,11 @@ const StatsCard = props => {
 
   let icon;
   if (props.type === "Approved") {
-    icon = <SentimentVerySatisfiedIcon className={classes.icon} />;
-  } else if (props.type === "Denied") {
-    icon = <SentimentVeryDissatisfiedIcon className={classes.icon} />;
+    icon = <CheckCircleIcon className={classes.icon} />;
+  } else if (props.type === "Banned") {
+    icon = <NotInterestedIcon className={classes.icon} />;
   } else if (props.type === "Pending") {
-    icon = <SentimentSatisfiedIcon className={classes.icon} />;
+    icon = <HourglassEmptyIcon className={classes.icon} />;
   } else if (props.type === "ResponseTime") {
     icon = <AlarmOnIcon className={classes.icon}></AlarmOnIcon>;
   }

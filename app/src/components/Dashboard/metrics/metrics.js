@@ -104,8 +104,10 @@ class Metrics extends React.Component {
     let value = this.state.stats.averageResponseTimeInMinutes;
     if (value === 0) {
       return "N/A";
+    } else if (value < 1) {
+      return "Less Than 1 Minute";
     } else {
-      return `${value} Minutes`;
+      return `${value.toFixed(0)} Minutes`;
     }
   };
 
@@ -158,6 +160,8 @@ class Metrics extends React.Component {
               pending={this.state.stats.pending}
               approved={this.state.stats.approved}
               denied={this.state.stats.denied}
+              banned={this.state.stats.banned}
+              deactivated={this.state.stats.deactivated}
             ></StatusGraph>
           </div>
         </Grid>
@@ -197,19 +201,19 @@ class Metrics extends React.Component {
     return (
       <React.Fragment>
         {this._getStatsCard(
-          "Pending Requests Count",
+          "Pending Applications",
           this.state.stats.pending,
           "Pending"
         )}
         {this._getStatsCard(
-          "Approved Requests Count",
+          "Whitelisted Players",
           this.state.stats.approved,
           "Approved"
         )}
         {this._getStatsCard(
-          "Denied Requests Count",
-          this.state.stats.denied,
-          "Denied"
+          "Banned Players",
+          this.state.stats.banned,
+          "Banned"
         )}
         {this._getStatsCard(
           "Average Response Time",
