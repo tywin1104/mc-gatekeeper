@@ -11,6 +11,12 @@ import CommentIcon from "@material-ui/icons/Comment";
 import moment from "moment";
 import RequestsService from "../../../service/RequestsService";
 import i18next from "i18next";
+import Button from "@material-ui/core/Button";
+import Dialog from "@material-ui/core/Dialog";
+import DialogActions from "@material-ui/core/DialogActions";
+import DialogContent from "@material-ui/core/DialogContent";
+import DialogContentText from "@material-ui/core/DialogContentText";
+import DialogTitle from "@material-ui/core/DialogTitle";
 import { CSVLink } from "react-csv";
 
 class Table extends React.Component {
@@ -18,12 +24,19 @@ class Table extends React.Component {
     super(props);
     this.download = this.download.bind(this);
     this.state = {
+      open: false,
       dataToDownload: []
     };
   }
 
-  onStatusChange = (event, request, newStatus) => {
-    event.preventDefault();
+  handleClickOpen = () => {
+    this.setState({ open: true });
+  };
+
+  handleClose = () => {
+    this.setState({ open: false });
+  };
+  onStatusChange = (request, newStatus) => {
     let requestID = request._id;
     RequestsService.handleStatusChangeByAdmin(
       requestID,
@@ -32,14 +45,17 @@ class Table extends React.Component {
     )
       .then(res => {
         if (res.status === 200) {
+          let processedTimestamp = request.processedTimestamp;
+          if (processedTimestamp === "N/A") {
+            processedTimestamp = new Date().toISOString();
+          }
           this.props.handleChangeRequestStatus({
             requestID: requestID,
             // Mock the updated request here to update the parent state
             request: {
               ...request,
               status: newStatus,
-              processedTimestamp:
-                request.processedTimestamp || new Date().toISOString(),
+              processedTimestamp: processedTimestamp,
               lastUpdatedTimestamp: new Date().toISOString()
             }
           });
@@ -59,6 +75,29 @@ class Table extends React.Component {
           }
         }
       });
+  };
+
+  // onAttempt will open up the confirmation dialog for each corresponding actions
+  onAttemptAction = (rowData, newStatus) => {
+    this.setState({
+      open: true,
+      rowData: rowData,
+      attemptedNewStatus: newStatus
+    });
+  };
+
+  onConfirmAction = () => {
+    this.onStatusChange(this.state.rowData, this.state.attemptedNewStatus);
+    this.setState({ open: false });
+  };
+
+  getActionConfirmMsg = () => {
+    let attemptedNewStatus = this.state.attemptedNewStatus;
+    if (attemptedNewStatus === "Banned") {
+      return "You are about to ban the player permanately on your server. Are you sure about this?";
+    } else if (attemptedNewStatus === "Deactivated") {
+      return "By deactivating, the player will be unwhitelisted from your server and unable to play. However the user will be able to submit new application again in the future.";
+    }
   };
 
   download(data) {
@@ -116,6 +155,29 @@ class Table extends React.Component {
     });
     return (
       <div>
+        <div>
+          <Dialog
+            open={this.state.open}
+            onClose={this.handleClose}
+            aria-labelledby="alert-dialog-title"
+            aria-describedby="alert-dialog-description"
+          >
+            <DialogTitle id="alert-dialog-title">{"Confirmation"}</DialogTitle>
+            <DialogContent>
+              <DialogContentText id="alert-dialog-description">
+                {this.getActionConfirmMsg()}
+              </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={this.handleClose} color="primary">
+                Cancel
+              </Button>
+              <Button onClick={this.onConfirmAction} color="primary" autoFocus>
+                Confirm
+              </Button>
+            </DialogActions>
+          </Dialog>
+        </div>
         <CSVLink
           headers={csvHeaders}
           data={this.state.dataToDownload}
@@ -131,6 +193,8 @@ class Table extends React.Component {
             { title: i18next.t("Dashboard.Table.ID"), field: "_id" },
             { title: i18next.t("Dashboard.Table.Username"), field: "username" },
             { title: i18next.t("Dashboard.Table.Email"), field: "email" },
+            { title: "Gender", field: "gender" },
+            { title: "Age", field: "age" },
             {
               title: i18next.t("Dashboard.Table.Submitted"),
               field: "timestamp"
@@ -155,24 +219,9 @@ class Table extends React.Component {
             return (
               <div>
                 <List component="nav" aria-label="main mailbox folders">
-                  <ListItem button>
-                    <ListItemIcon>
-                      <WcIcon />
-                    </ListItemIcon>
-                    <ListItemText primary={rowData.gender} />
-                  </ListItem>
-                  <ListItem button>
-                    <ListItemIcon>
-                      <FaceIcon />
-                    </ListItemIcon>
-                    <ListItemText primary={rowData.age} />
-                  </ListItem>
-                  <ListItem button>
+                  <ListItem>
                     <ListItemIcon>
                       <NotesIcon />{" "}
-                      <stong>
-                        {i18next.t("Dashboard.Table.ApplicationText")}
-                      </stong>
                     </ListItemIcon>
                     <ListItemText primary={rowData.info.applicationText} />
                   </ListItem>
@@ -197,28 +246,28 @@ class Table extends React.Component {
               icon: "check",
               tooltip: i18next.t("Dashboard.Table.ApproveTooltip"),
               onClick: (event, rowData) =>
-                this.onStatusChange(event, rowData, "Approved"),
+                this.onStatusChange(rowData, "Approved"),
               hidden: rowData.status !== "Pending"
             }),
             rowData => ({
               icon: "close",
               tooltip: i18next.t("Dashboard.Table.DenyTooltip"),
               onClick: (event, rowData) =>
-                this.onStatusChange(event, rowData, "Denied"),
+                this.onStatusChange(rowData, "Denied"),
               hidden: rowData.status !== "Pending"
             }),
             rowData => ({
               icon: "cancel",
               tooltip: "Deactivate the user",
               onClick: (event, rowData) =>
-                this.onStatusChange(event, rowData, "Deactivated"),
+                this.onAttemptAction(rowData, "Deactivated"),
               hidden: rowData.status !== "Approved"
             }),
             rowData => ({
               icon: "delete",
               tooltip: "Ban the user",
               onClick: (event, rowData) =>
-                this.onStatusChange(event, rowData, "Banned"),
+                this.onAttemptAction(rowData, "Banned"),
               hidden: rowData.status !== "Approved"
             })
           ]}

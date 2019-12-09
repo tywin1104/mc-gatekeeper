@@ -250,11 +250,7 @@ func (worker *Worker) processApproval(d amqp.Delivery, request types.WhitelistRe
 		d.Nack(false, false)
 		return
 	}
-	err = worker.emailDecision(request)
-	if err != nil {
-		d.Nack(false, false)
-		return
-	}
+	worker.emailDecision(request)
 	d.Ack(false)
 }
 
@@ -269,11 +265,7 @@ func (worker *Worker) processDenial(d amqp.Delivery, request types.WhitelistRequ
 	}).Info("Received new task")
 
 	worker.updateCache(request)
-	err := worker.emailDecision(request)
-	if err != nil {
-		d.Nack(false, false)
-		return
-	}
+	worker.emailDecision(request)
 	d.Ack(false)
 }
 
@@ -296,7 +288,6 @@ func (worker *Worker) processBan(d amqp.Delivery, request types.WhitelistRequest
 		return
 	}
 	d.Ack(false)
-
 }
 
 // Deactivate a user will un-whitelist that username. But allow further applications
@@ -484,13 +475,8 @@ func (worker *Worker) getTargetOps() []string {
 
 // issue  command againest a user on the game server with retries
 func (worker *Worker) issueRCON(command string) error {
-	err := try.Do(func(attempt int) (bool, error) {
-		_, e := worker.rconClient.SendCommand(command)
-		if e != nil {
-			time.Sleep(5 * time.Second) // 5 seconds delay between retrys
-		}
-		return attempt < 3, e // try 3 times
-	})
+	_, err := worker.rconClient.SendCommand(command)
+
 	if err != nil {
 		return err
 	}
