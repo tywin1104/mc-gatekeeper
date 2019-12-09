@@ -6,6 +6,7 @@ import (
 	"errors"
 	"math/rand"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -34,7 +35,8 @@ type Worker struct {
 	delivery         <-chan amqp.Delivery
 }
 
-// NewWorker creates a worker to constantly listen and handle messages in the queue
+// NewWorker creates a worker to constantly listen and handle messages in the queue.
+// At this step, the worker will establish connection to the message queue and rconClient.
 func NewWorker(db *db.Service, cache *cache.Service, logger *logrus.Entry, rabbitCloseError chan *amqp.Error) (*Worker, error) {
 	// Initialize rcon client to interact with game server
 	var rconClient *rcon.Client
@@ -95,18 +97,45 @@ func (worker *Worker) Start(wg *sync.WaitGroup) {
 	worker.channel = ch
 	args := make(amqp.Table)
 	// Dead letter exchange name
-	args["x-dead-letter-exchange"] = "dead.letter.ex"
+	args["x-dead-letter-exchange"] = "retry.ex"
 	// Default message ttl 24 hours
 	args["x-message-ttl"] = int32(8.64e+7)
 
-	_, err = ch.QueueDeclare(
-		viper.GetString("taskQueueName"), // name
-		true,                             // durable
-		false,                            // delete when unused
-		false,                            // exclusive
-		false,                            // no-wait
-		args,                             // arguments
+	err = ch.ExchangeDeclare(
+		"work.ex", // name
+		"fanout",  // type
+		true,      // durable
+		false,     // auto-deleted
+		false,     // internal
+		false,     // no-wait
+		nil,       // arguments
 	)
+	if err != nil {
+		worker.failOnError(err, "")
+	}
+
+	_, err = ch.QueueDeclare(
+		"work.queue", // name
+		true,         // durable
+		false,        // delete when unused
+		false,        // exclusive
+		false,        // no-wait
+		args,         // arguments
+	)
+	if err != nil {
+		worker.failOnError(err, "")
+	}
+
+	err = ch.QueueBind(
+		"work.queue", // queue name
+		"",           // routing key
+		"work.ex",    // exchange
+		false,
+		nil,
+	)
+	if err != nil {
+		worker.failOnError(err, "")
+	}
 	worker.failOnError(err, "Failed to declare a queue")
 
 	err = ch.Qos(
@@ -130,13 +159,13 @@ func (worker *Worker) Start(wg *sync.WaitGroup) {
 // Is called whenver a new connection is established and the old one is closed
 func (worker *Worker) updateDeliveryChannel() {
 	msgs, err := worker.channel.Consume(
-		viper.GetString("taskQueueName"), // queue
-		"",                               // consumer
-		false,                            // auto-ack
-		false,                            // exclusive
-		false,                            // no-local
-		false,                            // no-wait
-		nil,                              // args
+		"work.queue", // queue
+		"",           // consumer
+		false,        // auto-ack
+		false,        // exclusive
+		false,        // no-local
+		false,        // no-wait
+		nil,          // args
 	)
 	worker.failOnError(err, "Failed to register a consumer")
 	worker.delivery = msgs
@@ -191,8 +220,8 @@ func (worker *Worker) runLoop() {
 					"messageBody": d.Body,
 					"err":         err,
 				}).Error("Unable to decode message into whitelistRequest")
-				// Unable to decode this message, put to the dead-letter queue
-				d.Nack(false, false)
+				// Unable to decode this message, discard the message
+				d.Ack(false)
 			} else {
 				// Concrete actions to do when receiving task from message queue
 				// From the message body to determine which type of work to do
@@ -231,7 +260,6 @@ func (worker *Worker) updateCache(request types.WhitelistRequest) {
 	}
 }
 
-// Nack if decision email is not sent. Ack if sent.
 func (worker *Worker) processApproval(d amqp.Delivery, request types.WhitelistRequest) {
 	worker.logger.WithFields(logrus.Fields{
 		"username": request.Username,
@@ -246,15 +274,18 @@ func (worker *Worker) processApproval(d amqp.Delivery, request types.WhitelistRe
 		worker.logger.WithFields(logrus.Fields{
 			"username": request.Username,
 			"err":      err.Error(),
-		}).Error("Unable to issue whitelist cmd on the game server")
-		d.Nack(false, false)
+		}).Warn("Unable to whitelist user at this moment. Will retry later.")
+		worker.retryMsgWithDelay(d, "Whitelist "+request.Username)
 		return
 	}
-	worker.emailDecision(request)
+	// Only send email to the user once, not in each retry
+	if _, ok := d.Headers["x-retry-count"]; !ok {
+		worker.emailDecision(request)
+	}
+	worker.updateOnserverStatus(request, "Whitelisted")
 	d.Ack(false)
 }
 
-// Nack if decision email is not sent. Ack if sent.
 func (worker *Worker) processDenial(d amqp.Delivery, request types.WhitelistRequest) {
 	// Need to send update status back to the user
 	// Put message to dead letter queue for later investigation if unable to send decision email
@@ -277,16 +308,17 @@ func (worker *Worker) processBan(d amqp.Delivery, request types.WhitelistRequest
 		"ID":       request.ID,
 		"Type":     "Ban Task",
 	}).Info("Received new task")
-	worker.updateCache(request)
 	err := worker.issueRCON("ban " + request.Username)
 	if err != nil {
 		worker.logger.WithFields(logrus.Fields{
 			"username": request.Username,
 			"err":      err.Error(),
-		}).Error("Unable to ban user on the game server")
-		d.Nack(false, false)
-		return
+		}).Warn("Unable to ban user on the game server at this moment. Will retry later.")
+		// Republish the msg to the retry queue with incremented retryCount and exponential backoff expiration time
+		worker.retryMsgWithDelay(d, "Ban "+request.Username)
 	}
+	worker.updateOnserverStatus(request, "Banned")
+	worker.updateCache(request)
 	d.Ack(false)
 }
 
@@ -298,21 +330,20 @@ func (worker *Worker) processDeactivate(d amqp.Delivery, request types.Whitelist
 		"ID":       request.ID,
 		"Type":     "Deactivate Task",
 	}).Info("Received new task")
-	worker.updateCache(request)
 	err := worker.issueRCON("whitelist remove " + request.Username)
 	if err != nil {
 		worker.logger.WithFields(logrus.Fields{
 			"username": request.Username,
 			"err":      err.Error(),
-		}).Error("Unable to deactivate user on the game server")
-		d.Nack(false, false)
+		}).Warn("Unable to deactivate user on the game server at this moment. Will retry later.")
+		worker.retryMsgWithDelay(d, "Deactivate "+request.Username)
 		return
 	}
+	worker.updateOnserverStatus(request, "None")
+	worker.updateCache(request)
 	d.Ack(false)
-
 }
 
-//Nack: successful ops emails less than threshold; confirmation email does not count
 func (worker *Worker) processNewRequest(d amqp.Delivery, request types.WhitelistRequest) {
 	worker.logger.WithFields(logrus.Fields{
 		"username": request.Username,
@@ -320,7 +351,6 @@ func (worker *Worker) processNewRequest(d amqp.Delivery, request types.Whitelist
 		"Type":     "New Reqeust Task",
 	}).Info("Received new task")
 
-	worker.updateCache(request)
 	// Need to handle new request
 	// Send application confirmation email to user
 	worker.emailConfirmation(request)
@@ -333,10 +363,55 @@ func (worker *Worker) processNewRequest(d amqp.Delivery, request types.Whitelist
 			"message":      request,
 			"successCount": successCount,
 		}).Error("Failed to dispatch action emails to required number of ops")
-		d.Nack(false, false)
 		return
 	}
+	worker.updateCache(request)
 	d.Ack(false)
+}
+
+// retryMsgWithDelay will ack the original message and republish the message
+// to the wait queue with exponential-backoff expiration value
+func (worker *Worker) retryMsgWithDelay(d amqp.Delivery, actionDescription string) {
+	var expiration int = 15 * 60 * 1000
+	if val, ok := d.Headers["x-death"]; ok {
+		val := val.([]interface{})
+		if len(val) > 0 {
+			expirationStr := val[0].(amqp.Table)["original-expiration"].(string)
+			i, _ := strconv.Atoi(expirationStr)
+			expiration = i * 2
+		}
+	}
+	var retryCount int32 = 1
+	if val, ok := d.Headers["x-retry-count"]; ok {
+		retryCount = val.(int32) + 1
+	}
+	// If retry count reaches the maximum value, discard the message to prevent infinite loop
+	if retryCount > 6 {
+		worker.logger.WithFields(logrus.Fields{
+			"action": actionDescription,
+		}).Error("Unable to performe this operation. Give up on tries")
+		d.Ack(false)
+		return
+	}
+	headers := make(amqp.Table)
+	headers["x-retry-count"] = retryCount
+	e := worker.channel.Publish(
+		"retry.ex", // exchange
+		"",         // routing key
+		false,      // mandatory
+		false,
+		amqp.Publishing{
+			Headers:      headers,
+			DeliveryMode: amqp.Persistent,
+			ContentType:  "application/json",
+			Expiration:   strconv.Itoa(expiration),
+			Body:         d.Body,
+		})
+	if e != nil {
+		worker.logger.WithFields(logrus.Fields{
+			"err": e.Error(),
+		}).Error("Unable to republish message for retry")
+	}
 }
 
 func (worker *Worker) emailDecision(whitelistRequest types.WhitelistRequest) error {
@@ -458,6 +533,20 @@ func (worker *Worker) emailToOps(whitelistRequest types.WhitelistRequest, quoram
 		return successCount, nil
 	}
 	return successCount, errors.New("Success count does not reach minimum requirement")
+}
+
+func (worker *Worker) updateOnserverStatus(request types.WhitelistRequest, onserverStatus string) {
+	requestedChange := make(bson.M)
+	requestedChange["onserverStatus"] = onserverStatus
+	_, err := worker.dbService.UpdateRequest(bson.D{{"_id", request.ID}}, bson.M{
+		"$set": requestedChange,
+	})
+	if err != nil {
+		worker.logger.WithFields(logrus.Fields{
+			"err": err,
+			"ID":  request.ID.Hex(),
+		}).Error("Unable to update onserver status")
+	}
 }
 
 func (worker *Worker) getTargetOps() []string {

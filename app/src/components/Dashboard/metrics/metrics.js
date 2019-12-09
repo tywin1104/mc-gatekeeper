@@ -44,6 +44,7 @@ const useStyles1 = makeStyles(theme => ({
   },
   message: {
     display: "flex",
+    fontSize: "120%",
     alignItems: "center"
   }
 }));
@@ -123,9 +124,33 @@ class Metrics extends React.Component {
     return "";
   };
 
-  _getSnackBarStyle = () => {
+  _getDivergentMsg = () => {
+    if (this.state.stats != null && this.state.stats.aggregateStats != null) {
+      let count = this.state.stats.aggregateStats.divergentCount;
+      let usernames = this.state.stats.aggregateStats.divergentUsernames;
+      if (count > 0) {
+        return `Status of [${usernames}] are not up-to-date on the game server as a result of game server outage.
+        Please make sure the game server is running and the system will retry failed operations`;
+      } else {
+        return "RCON connection to the game server is good.";
+      }
+    }
+    return "";
+  };
+
+  _getOvertimeNotificationStyle = () => {
     if (this.state.stats != null && this.state.stats.aggregateStats != null) {
       let count = this.state.stats.aggregateStats.overtimeCount;
+      if (count > 0) {
+        return "warning";
+      }
+    }
+    return "success";
+  };
+
+  _getDivergentNotificationStyle = () => {
+    if (this.state.stats != null && this.state.stats.aggregateStats != null) {
+      let count = this.state.stats.aggregateStats.divergentCount;
       if (count > 0) {
         return "warning";
       }
@@ -206,7 +231,7 @@ class Metrics extends React.Component {
           "Pending"
         )}
         {this._getStatsCard(
-          "Whitelisted Players",
+          "Approved Players",
           this.state.stats.approved,
           "Approved"
         )}
@@ -226,12 +251,20 @@ class Metrics extends React.Component {
 
   getNotification = () => {
     return (
-      <Grid item xs={12} sm={12} height="100%">
-        <MySnackbarContentWrapper
-          variant={this._getSnackBarStyle()}
-          message={this._getOvertimeWarningMsg()}
-        />
-      </Grid>
+      <React.Fragment>
+        <Grid item xs={12} sm={12} height="100%">
+          <MySnackbarContentWrapper
+            variant={this._getOvertimeNotificationStyle()}
+            message={this._getOvertimeWarningMsg()}
+          />
+        </Grid>
+        <Grid item xs={12} sm={12} height="100%">
+          <MySnackbarContentWrapper
+            variant={this._getDivergentNotificationStyle()}
+            message={this._getDivergentMsg()}
+          />
+        </Grid>
+      </React.Fragment>
     );
   };
   render() {

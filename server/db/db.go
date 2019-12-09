@@ -44,6 +44,7 @@ func (s *Service) CreateRequest(newRequest types.WhitelistRequest) (primitive.Ob
 	// Set initial request status and attach timestamp
 	newRequest.Timestamp = time.Now()
 	newRequest.Status = "Pending"
+	newRequest.OnserverStatus = "None"
 	_, err := collection.InsertOne(context.TODO(), newRequest)
 	if err != nil {
 		return primitive.ObjectID{}, err

@@ -55,8 +55,10 @@ type Stats struct {
 
 // AggregateStats are records of some time-consuming results and got updated at regular intervals
 type AggregateStats struct {
-	OvertimeCount    int                     `json:"overtimeCount"`
-	AdminPerformance map[string]*Performance `json:"adminPerformance"`
+	OvertimeCount      int                     `json:"overtimeCount"`
+	AdminPerformance   map[string]*Performance `json:"adminPerformance"`
+	DivergentCount     int                     `json:"divergentCount"`
+	DivergentUsernames []string                `json:"divergentUsernames"`
 }
 
 // Performance contains stats information about each ops
@@ -119,7 +121,16 @@ func (svc *Service) UpdateAggregateStats() error {
 		return err
 	}
 	adminPerformance := make(map[string]*Performance)
+	divergentCount := 0
+	divergentUsernames := []string{}
+	matchedStatus := map[string]string{
+		"Approved":    "Whitelisted",
+		"Denied":      "None",
+		"Deactivated": "None",
+		"Banned":      "Banned",
+	}
 	for _, request := range fulfilledRequests {
+		// analyze admin performance
 		processingTime := request.ProcessedTimestamp.Sub(request.Timestamp).Minutes()
 		if p, ok := adminPerformance[request.Admin]; ok {
 			p.totalResponseTimeInMinutes += processingTime
@@ -132,10 +143,17 @@ func (svc *Service) UpdateAggregateStats() error {
 			p.AverageResponseTimeInMinutes = processingTime
 			adminPerformance[request.Admin] = p
 		}
+		// If the user's on-server status does not match its desired status for over a certain time, consider it divergent
+		if request.OnserverStatus != matchedStatus[request.Status] && time.Now().Sub(request.LastUpdatedTimestamp).Minutes() >= 2 {
+			divergentCount++
+			divergentUsernames = append(divergentUsernames, request.Username)
+		}
 	}
 	var aggreagateStats = AggregateStats{
-		OvertimeCount:    overtimeCount,
-		AdminPerformance: adminPerformance,
+		OvertimeCount:      overtimeCount,
+		AdminPerformance:   adminPerformance,
+		DivergentCount:     divergentCount,
+		DivergentUsernames: divergentUsernames,
 	}
 	// serialize objects to JSON
 	json, err := json.Marshal(aggreagateStats)
@@ -245,6 +263,8 @@ func (svc *Service) UpdateRealTimeStats(request types.WhitelistRequest) error {
 		if err != nil {
 			return err
 		}
+		var args = make([]interface{}, 0)
+		args = append(args, statsKey)
 		newApprovedCount := stats.Approved
 		newDeniedCount := stats.Denied
 		newPendingCount := stats.Pending
@@ -252,8 +272,7 @@ func (svc *Service) UpdateRealTimeStats(request types.WhitelistRequest) error {
 		newDeactivatedCount := stats.Deactivated
 		newTotalResponseTimeInMinutes := stats.TotalResponseTimeInMinutes
 		var newAverageResponseTimeInMinutes float64
-		var args = make([]interface{}, 0)
-		args = append(args, statsKey)
+
 		// Update the values for stats on the cache according to different type of actions being
 		// made for the request
 		switch request.Status {
@@ -287,6 +306,7 @@ func (svc *Service) UpdateRealTimeStats(request types.WhitelistRequest) error {
 			newAverageResponseTimeInMinutes = newTotalResponseTimeInMinutes / float64(newApprovedCount+newDeniedCount+newBannedCount+newDeactivatedCount)
 			args = append(args, []interface{}{"averageResponseTimeInMinutes", newAverageResponseTimeInMinutes}...)
 		}
+
 		// Use the MULTI command to inform Redis that we are starting
 		// a new transaction.
 		err = conn.Send("MULTI")

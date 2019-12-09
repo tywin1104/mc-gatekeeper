@@ -14,6 +14,7 @@ type WhitelistRequest struct {
 	Age                  int64                  `bson:"age" json:"age"`
 	Gender               string                 `bson:"gender" json:"gender"`
 	Status               string                 `bson:"status" json:"status"`
+	OnserverStatus       string                 `bson:"onserverStatus" json:"onserverStatus"`
 	Timestamp            time.Time              `bson:"timestamp" json:"timestamp"`
 	ProcessedTimestamp   time.Time              `bson:"processedTimestamp" json:"processedTimestamp" json:",omitempty"`
 	LastUpdatedTimestamp time.Time              `bson:"lastUpdatedTimestamp" json:"lastUpdatedTimestamp" json:",omitempty"`

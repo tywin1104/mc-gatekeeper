@@ -5,8 +5,6 @@ import ListItem from "@material-ui/core/ListItem";
 import ListItemIcon from "@material-ui/core/ListItemIcon";
 import ListItemText from "@material-ui/core/ListItemText";
 import NotesIcon from "@material-ui/icons/Notes";
-import WcIcon from "@material-ui/icons/Wc";
-import FaceIcon from "@material-ui/icons/Face";
 import CommentIcon from "@material-ui/icons/Comment";
 import moment from "moment";
 import RequestsService from "../../../service/RequestsService";

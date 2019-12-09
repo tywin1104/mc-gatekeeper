@@ -106,42 +106,39 @@ func (s *Service) setup() error {
 		return errors.New("Failed to open a channel")
 	}
 
-	args := make(amqp.Table)
-	// Dead letter exchange name
-	args["x-dead-letter-exchange"] = "dead.letter.ex"
-	// Default message ttl 24 hours
-	args["x-message-ttl"] = int32(8.64e+7)
+	retryQueueArgs := make(amqp.Table)
+	// When message sin retry queue expires, it will be republished into job queue (default exchange)
+	retryQueueArgs["x-dead-letter-exchange"] = "work.ex"
 
-	// Declare the dead letter exchange
 	err = ch.ExchangeDeclare(
-		"dead.letter.ex", // name
-		"fanout",         // type
-		true,             // durable
-		false,            // auto-deleted
-		false,            // internal
-		false,            // no-wait
-		nil,              // arguments
+		"retry.ex", // name
+		"fanout",   // type
+		true,       // durable
+		false,      // auto-deleted
+		false,      // internal
+		false,      // no-wait
+		nil,        // arguments
 	)
 	if err != nil {
 		return err
 	}
 	// Declare the dead letter queue
 	_, err = ch.QueueDeclare(
-		"dead.letter.queue", // name
-		true,                // durable
-		false,               // delete when unused
-		false,               // exclusive
-		false,               // no-wait
-		nil,                 // arguments
+		"retry.queue",  // name
+		true,           // durable
+		false,          // delete when unused
+		false,          // exclusive
+		false,          // no-wait
+		retryQueueArgs, // arguments
 	)
 	if err != nil {
 		return err
 	}
 	// Bind dead letter exchange to dead letter queue
 	err = ch.QueueBind(
-		"dead.letter.queue", // queue name
-		"",                  // routing key
-		"dead.letter.ex",    // exchange
+		"retry.queue", // queue name
+		"",            // routing key
+		"retry.ex",    // exchange
 		false,
 		nil,
 	)
@@ -149,17 +146,48 @@ func (s *Service) setup() error {
 		return err
 	}
 
-	_, err = ch.QueueDeclare(
-		viper.GetString("taskQueueName"), // name
-		true,                             // durable
-		false,                            // delete when unused
-		false,                            // exclusive
-		false,                            // no-wait
-		args,                             // arguments
+	workQueueArgs := make(amqp.Table)
+	// Dead letter exchange name
+	workQueueArgs["x-dead-letter-exchange"] = "retry.ex"
+	// Default message ttl 24 hours
+	workQueueArgs["x-message-ttl"] = int32(8.64e+7)
+
+	err = ch.ExchangeDeclare(
+		"work.ex", // name
+		"fanout",  // type
+		true,      // durable
+		false,     // auto-deleted
+		false,     // internal
+		false,     // no-wait
+		nil,       // arguments
 	)
 	if err != nil {
-		return errors.New("Failed to declare the queue")
+		return err
 	}
+
+	_, err = ch.QueueDeclare(
+		"work.queue",  // name
+		true,          // durable
+		false,         // delete when unused
+		false,         // exclusive
+		false,         // no-wait
+		workQueueArgs, // arguments
+	)
+	if err != nil {
+		return err
+	}
+
+	err = ch.QueueBind(
+		"work.queue", // queue name
+		"",           // routing key
+		"work.ex",    // exchange
+		false,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
 	s.channel = ch
 	return nil
 }
@@ -176,9 +204,9 @@ func (s *Service) Publish(message types.WhitelistRequest) error {
 			s.log.Infof("Trying to publish message to broker [%d/3]\n", attempt)
 		}
 		e := s.channel.Publish(
-			"",                               // exchange
-			viper.GetString("taskQueueName"), // routing key
-			false,                            // mandatory
+			"work.ex", // exchange
+			"",        // routing key
+			false,     // mandatory
 			false,
 			amqp.Publishing{
 				DeliveryMode: amqp.Persistent,
