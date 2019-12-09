@@ -10,6 +10,9 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -25,6 +28,15 @@ type payload struct {
 	packetBody []byte // Varies
 }
 
+// Client is an RCON client based around the Valve RCON Protocol, see more about the protocol in the
+// Valve Wiki: https://developer.valvesoftware.com/wiki/Source_RCON_Protocol
+type Client struct {
+	connection net.Conn
+	password   string
+}
+
+var log = logrus.New()
+
 // Both requests and responses are sent as TCP packets. Their payload follows the following basic structure:
 // Field        	Type                               value
 // Size	         32-bit little-endian Signed Integer
@@ -36,33 +48,33 @@ func (p *payload) calculatePacketSize() int32 {
 	return int32(len(p.packetBody) + 4 + 4 + 2)
 }
 
-// NewClient contsurct a RCON client againest a running game server and
-// issue a ininial authentication using password
-func NewClient(host string, port int, pass string) (*Client, error) {
-	address := fmt.Sprintf("%s:%d", host, port)
+func connectRCON() (*Client, error) {
+	address := fmt.Sprintf("%s:%d", viper.GetString("RCONServer"), viper.GetInt("RCONPort"))
 
-	conn, err := net.DialTimeout("tcp", address, 10*time.Second)
+	conn, err := net.DialTimeout("tcp", address, 5*time.Second)
 	if err != nil {
 		return nil, err
 	}
 
 	client := new(Client)
 	client.connection = conn
-	client.password = pass
+	client.password = viper.GetString("RCONPassword")
 
-	err = client.sendAuthentication(pass)
+	err = client.sendAuthentication(client.password)
 	if err != nil {
 		return nil, err
 	}
-
 	return client, nil
 }
 
-// Client is an RCON client based around the Valve RCON Protocol, see more about the protocol in the
-// Valve Wiki: https://developer.valvesoftware.com/wiki/Source_RCON_Protocol
-type Client struct {
-	connection net.Conn
-	password   string
+// NewClient contsurct a RCON client againest a running game server and
+// issue a ininial authentication using password
+func NewClient(host string, port int, pass string) (*Client, error) {
+	client, err := connectRCON()
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
 }
 
 func (c *Client) sendAuthentication(pass string) error {
@@ -78,11 +90,31 @@ func (c *Client) sendAuthentication(pass string) error {
 
 // SendCommand issues command against running game server
 func (c *Client) SendCommand(command string) (string, error) {
-	payload := createPayload(serverdataExeccommand, command)
-
-	response, err := c.sendPayload(payload)
+	pl := createPayload(serverdataExeccommand, command)
+	var response *payload
+	response, err := c.sendPayload(pl)
 	if err != nil {
-		return "", err
+		// try to reconnect to remote game server when connection drops
+		reconnected := false
+		for i := 1; i <= 3; i++ {
+			log.Infof("Reconnect to RCON [%d/3]", i)
+			newClient, e := connectRCON()
+			if e != nil {
+				time.Sleep(5 * time.Second)
+				continue
+			} else {
+				c.connection = newClient.connection
+				reconnected = true
+				response, e = c.sendPayload(pl)
+				if e != nil {
+					return "", e
+				}
+				break
+			}
+		}
+		if !reconnected {
+			return "", errors.New("Unable to reconnect to RCON server. Game server is down")
+		}
 	}
 
 	// Trim null bytes
