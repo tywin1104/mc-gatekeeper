@@ -7,11 +7,13 @@ services:
     restart: always
     expose:
       - 27017
+    depends_on:
+      - cache
     volumes:
-      - ./.docker/mongodb/mongod.conf:/etc/mongod.conf
-      - ./.docker/mongodb/initdb.d/:/docker-entrypoint-initdb.d/
-      - ./.docker/mongodb/data/db/:/data/db/
-      - ./.docker/mongodb/data/log/:/var/log/mongodb/
+      - ./data/mongodb/mongod.conf:/etc/mongod.conf
+      - ./data/mongodb/initdb.d/:/docker-entrypoint-initdb.d/
+      - ./data/mongodb/data/db/:/data/db/
+      - ./data/mongodb/data/log/:/var/log/mongodb/
     networks:
       - "test_network"
 
@@ -29,8 +31,8 @@ services:
       - 25672
       - 35197
     volumes:
-      - ./data:/var/lib/rabbitmq
-      - ./data/logs:/var/log/rabbitmq
+      - ./data/rabbitmq/lib:/var/lib/rabbitmq
+      - ./data/rabbitmq/logs:/var/log/rabbitmq
     hostname: rabbit
     networks:
       - "test_network"
@@ -42,8 +44,6 @@ services:
 
   cache:
     image: redis
-    depends_on:
-      - mongo
     container_name: gatekeeper-cache
     expose:
       - 6379
@@ -64,22 +64,36 @@ services:
     volumes:
       - './server/config.yaml:/server/config.yaml'
     environment:
-      - FRONTEND_DEPLOYED_URL=http://localhost:80/
+      - FRONTEND_DEPLOYED_URL=http://ec2-52-7-62-56.compute-1.amazonaws.com/
     networks:
       - "test_network"
 
-  app:
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+  nginx:
     build:
       context: ./app
-    container_name: gatekeeper-app
+    container_name: gatekeeper-nginx
     depends_on:
       - server
+    expose:
+      - 80
+      - 443
     ports:
-      - 80:80
+      - "80:80"
+      - "443:443"
     environment:
       - RECAPTCHA_SITEKEY=6Ld7qcAUAAAAADtzQrmz7it_EOpygwqSKuC8nY5I
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
     networks:
       - "test_network"
-
 networks:
   test_network:
