@@ -226,15 +226,15 @@ func (worker *Worker) runLoop() {
 				// Concrete actions to do when receiving task from message queue
 				// From the message body to determine which type of work to do
 				switch whitelistRequest.Status {
-				case "Approved":
+				case types.StatusApproved:
 					worker.processApproval(d, whitelistRequest)
-				case "Denied":
+				case types.StatusDenied:
 					worker.processDenial(d, whitelistRequest)
-				case "Pending":
+				case types.StatusPending:
 					worker.processNewRequest(d, whitelistRequest)
-				case "Deactivated":
+				case types.StatusDeactivated:
 					worker.processDeactivate(d, whitelistRequest)
-				case "Banned":
+				case types.StatusBanned:
 					worker.processBan(d, whitelistRequest)
 				}
 			}
@@ -317,7 +317,7 @@ func (worker *Worker) processBan(d amqp.Delivery, request types.WhitelistRequest
 		// Republish the msg to the retry queue with incremented retryCount and exponential backoff expiration time
 		worker.retryMsgWithDelay(d, "Ban "+request.Username)
 	}
-	worker.updateOnserverStatus(request, "Banned")
+	worker.updateOnserverStatus(request, types.OnserverBanned)
 	worker.updateCache(request)
 	d.Ack(false)
 }
@@ -339,7 +339,7 @@ func (worker *Worker) processDeactivate(d amqp.Delivery, request types.Whitelist
 		worker.retryMsgWithDelay(d, "Deactivate "+request.Username)
 		return
 	}
-	worker.updateOnserverStatus(request, "None")
+	worker.updateOnserverStatus(request, types.OnserverNone)
 	worker.updateCache(request)
 	d.Ack(false)
 }
@@ -425,7 +425,7 @@ func (worker *Worker) emailDecision(whitelistRequest types.WhitelistRequest) err
 	}
 	var subject string
 	var template string
-	if whitelistRequest.Status == "Approved" {
+	if whitelistRequest.Status == types.StatusApproved {
 		subject = viper.GetString("approvedEmailTitle")
 		template = "./mailer/templates/approve.html"
 	} else {

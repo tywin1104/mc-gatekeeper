@@ -23,10 +23,10 @@ func (svc *Service) updateRequestByID(requestID string, reqBody []byte, admin st
 	requestedChange["admin"] = admin
 	// update timestamp metadata according to different type of status change
 	if newStatus, ok := requestedChange["status"]; ok {
-		if newStatus == "Approved" || newStatus == "Denied" {
+		if newStatus == types.StatusApproved || newStatus == types.StatusDenied {
 			requestedChange["processedTimestamp"] = time.Now()
 			requestedChange["lastUpdatedTimestamp"] = time.Now()
-		} else if newStatus == "Deactivated" || newStatus == "Banned" {
+		} else if newStatus == types.StatusDeactivated || newStatus == types.StatusBanned {
 			requestedChange["lastUpdatedTimestamp"] = time.Now()
 		}
 	}

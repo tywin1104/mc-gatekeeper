@@ -17,12 +17,28 @@ import (
 )
 
 const (
-	allRequestKey        = "AllRequests"
-	statsKey             = "Stats"
-	aggregateStatusField = "AggregateStats"
-	maxRetry             = 5
-	layoutISO            = "01/02 2016"
-	ageGroupStep         = 15
+	allRequestKey = "AllRequests"
+	statsKey      = "Stats"
+
+	statsPending     = "pending"
+	statsDenied      = "denied"
+	statsApproved    = "approved"
+	statsBanned      = "banned"
+	statsDeactivated = "deactivated"
+	statsAvgResp     = "averageResponseTimeInMinutes"
+	statsTotResp     = "totalResponseTimeInMinutes"
+	statsMale        = "maleCount"
+	statsFemale      = "femaleCount"
+	statsOtherGender = "otherGenderCount"
+	statsAgeGroup1   = "ageGroup1Count"
+	statsAgeGroup2   = "ageGroup2Count"
+	statsAgeGroup3   = "ageGroup3Count"
+	statsAgeGroup4   = "ageGroup4Count"
+	statsAggregate   = "AggregateStats"
+
+	maxRetry     = 5
+	layoutISO    = "01/02 2016"
+	ageGroupStep = 15
 )
 
 // Service represents a redis cache that is used to cache API results
@@ -103,7 +119,7 @@ func NewService(db *db.Service, sseServer *sse.Broker) *Service {
 func (svc *Service) UpdateAggregateStats() error {
 	overtimeCount := 0
 
-	pendingRequests, err := svc.dbService.GetRequests(-1, bson.M{"status": "Pending"})
+	pendingRequests, err := svc.dbService.GetRequests(-1, bson.M{"status": types.StatusPending})
 	if err != nil {
 		return err
 	}
@@ -115,7 +131,7 @@ func (svc *Service) UpdateAggregateStats() error {
 		}
 	}
 	fulfilledRequests, err := svc.dbService.GetRequests(-1, bson.M{
-		"status": bson.M{"$in": []string{"Denied", "Approved", "Banned", "Deactivated"}},
+		"status": bson.M{"$in": []string{types.StatusDenied, types.StatusApproved, types.StatusBanned, types.StatusDeactivated}},
 	})
 	if err != nil {
 		return err
@@ -124,10 +140,10 @@ func (svc *Service) UpdateAggregateStats() error {
 	divergentCount := 0
 	divergentUsernames := []string{}
 	matchedStatus := map[string]string{
-		"Approved":    "Whitelisted",
-		"Denied":      "None",
-		"Deactivated": "None",
-		"Banned":      "Banned",
+		types.StatusApproved:    types.OnserverWhitelisted,
+		types.StatusDenied:      types.OnserverNone,
+		types.StatusDeactivated: types.OnserverNone,
+		types.StatusBanned:      types.OnserverBanned,
 	}
 	for _, request := range fulfilledRequests {
 		// analyze admin performance
@@ -162,7 +178,7 @@ func (svc *Service) UpdateAggregateStats() error {
 	}
 	conn := svc.pool.Get()
 	defer conn.Close()
-	_, err = conn.Do("HMSET", statsKey, aggregateStatusField, json)
+	_, err = conn.Do("HMSET", statsKey, statsAggregate, json)
 	if err != nil {
 		return err
 	}
@@ -233,7 +249,7 @@ func (svc *Service) getStats() (Stats, error) {
 		return Stats{}, err
 	}
 	// Need to manually unmarshal AggregateStats as it is a nested struct
-	value, err := redis.Values(conn.Do("HMGET", statsKey, aggregateStatusField))
+	value, err := redis.Values(conn.Do("HMGET", statsKey, statsAggregate))
 	// redis.Values returns []interface{}
 	aggregateStatsStr := fmt.Sprintf("%s", value[0])
 	if err != nil {
@@ -273,45 +289,44 @@ func (svc *Service) UpdateRealTimeStats(request types.WhitelistRequest) error {
 		newTotalResponseTimeInMinutes := stats.TotalResponseTimeInMinutes
 		var newAverageResponseTimeInMinutes float64
 
-		// Update the values for stats on the cache according to different type of actions being
-		// made for the request
-		switch request.Status {
-		case "Approved":
-			args = append(args, updateAgeGenderStats(request, stats, 1)...)
-			newApprovedCount++
-			newPendingCount--
-			newTotalResponseTimeInMinutes += request.ProcessedTimestamp.Sub(request.Timestamp).Minutes()
-			args = append(args, []interface{}{"pending", newPendingCount, "approved", newApprovedCount, "totalResponseTimeInMinutes", newTotalResponseTimeInMinutes}...)
-		case "Denied":
-			newDeniedCount++
-			newPendingCount--
-			newTotalResponseTimeInMinutes += request.ProcessedTimestamp.Sub(request.Timestamp).Minutes()
-			args = append(args, []interface{}{"pending", newPendingCount, "denied", newDeniedCount, "totalResponseTimeInMinutes", newTotalResponseTimeInMinutes}...)
-		case "Pending":
-			newPendingCount++
-			args = append(args, []interface{}{"pending", newPendingCount}...)
-		case "Banned":
-			newBannedCount++
-			newApprovedCount--
-			args = append(args, []interface{}{"approved", newApprovedCount, "banned", newBannedCount}...)
-			args = append(args, updateAgeGenderStats(request, stats, -1)...)
-		case "Deactivated":
-			newApprovedCount--
-			newDeactivatedCount++
-			args = append(args, []interface{}{"approved", newApprovedCount, "deactivated", newDeactivatedCount}...)
-			args = append(args, updateAgeGenderStats(request, stats, -1)...)
-		}
-		// Only update the average reponse time stats if the request is being fulfilled
-		if newTotalResponseTimeInMinutes != 0 {
-			newAverageResponseTimeInMinutes = newTotalResponseTimeInMinutes / float64(newApprovedCount+newDeniedCount+newBannedCount+newDeactivatedCount)
-			args = append(args, []interface{}{"averageResponseTimeInMinutes", newAverageResponseTimeInMinutes}...)
-		}
-
 		// Use the MULTI command to inform Redis that we are starting
 		// a new transaction.
 		err = conn.Send("MULTI")
 		if err != nil {
 			return err
+		}
+		// Update the values for stats on the cache according to different type of actions being
+		// made for the request
+		switch request.Status {
+		case types.StatusApproved:
+			updateAgeGenderStats(request, conn, 1)
+			newApprovedCount++
+			newPendingCount--
+			newTotalResponseTimeInMinutes += request.ProcessedTimestamp.Sub(request.Timestamp).Minutes()
+			args = append(args, []interface{}{statsPending, newPendingCount, statsApproved, newApprovedCount, statsTotResp, newTotalResponseTimeInMinutes}...)
+		case types.StatusDenied:
+			newDeniedCount++
+			newPendingCount--
+			newTotalResponseTimeInMinutes += request.ProcessedTimestamp.Sub(request.Timestamp).Minutes()
+			args = append(args, []interface{}{statsPending, newPendingCount, statsDenied, newDeniedCount, statsTotResp, newTotalResponseTimeInMinutes}...)
+		case types.StatusPending:
+			newPendingCount++
+			args = append(args, []interface{}{statsPending, newPendingCount}...)
+		case types.StatusBanned:
+			updateAgeGenderStats(request, conn, 1)
+			newBannedCount++
+			newApprovedCount--
+			args = append(args, []interface{}{statsApproved, newApprovedCount, statsBanned, newBannedCount}...)
+		case types.StatusDeactivated:
+			updateAgeGenderStats(request, conn, 1)
+			newApprovedCount--
+			newDeactivatedCount++
+			args = append(args, []interface{}{statsApproved, newApprovedCount, statsDeactivated, newDeactivatedCount}...)
+		}
+		// Only update the average reponse time stats if the request is being fulfilled
+		if newTotalResponseTimeInMinutes != 0 {
+			newAverageResponseTimeInMinutes = newTotalResponseTimeInMinutes / float64(newApprovedCount+newDeniedCount+newBannedCount+newDeactivatedCount)
+			args = append(args, []interface{}{statsAvgResp, newAverageResponseTimeInMinutes}...)
 		}
 		err = conn.Send("HMSET", args...)
 		if err != nil {
@@ -389,7 +404,7 @@ func (svc *Service) SyncStats() error {
 		var ageGroup1Count, ageGroup2Count, ageGroup3Count, ageGroup4Count int64
 		for _, request := range requests {
 			switch request.Status {
-			case "Approved":
+			case types.StatusApproved:
 				approved++
 				// Gather gender metric
 				switch request.Gender {
@@ -414,15 +429,15 @@ func (svc *Service) SyncStats() error {
 					ageGroup4Count++
 				}
 				totalResponseTimeInMinutes += request.ProcessedTimestamp.Sub(request.Timestamp).Minutes()
-			case "Denied":
+			case types.StatusDenied:
 				denied++
 				totalResponseTimeInMinutes += request.ProcessedTimestamp.Sub(request.Timestamp).Minutes()
-			case "Pending":
+			case types.StatusPending:
 				pending++
-			case "Banned":
+			case types.StatusBanned:
 				banned++
 				totalResponseTimeInMinutes += request.ProcessedTimestamp.Sub(request.Timestamp).Minutes()
-			case "Deactivated":
+			case types.StatusDeactivated:
 				deactivated++
 				totalResponseTimeInMinutes += request.ProcessedTimestamp.Sub(request.Timestamp).Minutes()
 			}
@@ -439,19 +454,19 @@ func (svc *Service) SyncStats() error {
 		}
 		err = conn.Send(
 			"HMSET", statsKey,
-			"pending", pending, "denied", denied,
-			"approved", approved,
-			"banned", banned,
-			"Deactivated", deactivated,
-			"averageResponseTimeInMinutes", averageResponseTimeInMinutes,
-			"totalResponseTimeInMinutes", totalResponseTimeInMinutes,
-			"maleCount", maleCount,
-			"femaleCount", femaleCount,
-			"otherGenderCount", otherGenderCount,
-			"ageGroup1Count", ageGroup1Count,
-			"ageGroup2Count", ageGroup2Count,
-			"ageGroup3Count", ageGroup3Count,
-			"ageGroup4Count", ageGroup4Count)
+			statsPending, pending, statsDenied, denied,
+			statsApproved, approved,
+			statsBanned, banned,
+			statsDeactivated, deactivated,
+			statsAvgResp, averageResponseTimeInMinutes,
+			statsTotResp, totalResponseTimeInMinutes,
+			statsMale, maleCount,
+			statsFemale, femaleCount,
+			statsOtherGender, otherGenderCount,
+			statsAgeGroup1, ageGroup1Count,
+			statsAgeGroup2, ageGroup2Count,
+			statsAgeGroup3, ageGroup3Count,
+			statsAgeGroup4, ageGroup4Count)
 		if err != nil {
 			return err
 		}
@@ -470,37 +485,26 @@ func (svc *Service) SyncStats() error {
 }
 
 // updateAgeGenderStats takes in a reuqest and make appropriate change to the stats
-func updateAgeGenderStats(request types.WhitelistRequest, stats Stats, delta int64) []interface{} {
-	args := make([]interface{}, 0)
-	var newMaleCount = stats.MaleCount
-	var newFemaleCount = stats.FemaleCount
-	var newOtherGenderCount = stats.OtherGenderCount
-	var newAgeGroup1Count = stats.AgeGroup1Count
-	var newAgeGroup2Count = stats.AgeGroup2Count
-	var newAgeGroup3Count = stats.AgeGroup3Count
-	var newAgeGroup4Count = stats.AgeGroup4Count
+func updateAgeGenderStats(request types.WhitelistRequest, conn redis.Conn, delta int64) {
 	switch request.Gender {
 	case "male":
-		newMaleCount += delta
+		conn.Send("HINCRBY", statsKey, statsMale, delta)
 	case "female":
-		newFemaleCount += delta
+		conn.Send("HINCRBY", statsKey, statsFemale, delta)
 	default:
-		newOtherGenderCount += delta
+		conn.Send("HINCRBY", statsKey, statsOtherGender, delta)
 	}
-	args = append(args, []interface{}{"maleCount", newMaleCount, "femaleCount", newFemaleCount, "otherGenderCount", newOtherGenderCount}...)
 
 	// Update age group metric
 	age := request.Age
 	var step int64 = ageGroupStep
 	if 0 <= age && age < step {
-		newAgeGroup1Count += delta
+		conn.Send("HINCRBY", statsKey, statsAgeGroup1, delta)
 	} else if step <= age && age < step*2 {
-		newAgeGroup2Count += delta
+		conn.Send("HINCRBY", statsKey, statsAgeGroup2, delta)
 	} else if step*2 <= age && age < step*3 {
-		newAgeGroup3Count += delta
+		conn.Send("HINCRBY", statsKey, statsAgeGroup3, delta)
 	} else {
-		newAgeGroup4Count += delta
+		conn.Send("HINCRBY", statsKey, statsAgeGroup4, delta)
 	}
-	args = append(args, []interface{}{"ageGroup1Count", newAgeGroup1Count, "ageGroup2Count", newAgeGroup2Count, "ageGroup3Count", newAgeGroup3Count, "ageGroup4Count", newAgeGroup4Count}...)
-	return args
 }

@@ -78,7 +78,7 @@ func (svc *Service) HandleCreateRequest() http.HandlerFunc {
 		// Need to fill in the ID field as it is generated from the db side
 		newRequest.ID = newRequestID
 		// Set initial status to be pending
-		newRequest.Status = "Pending"
+		newRequest.Status = types.StatusPending
 		err = svc.broker.Publish(newRequest)
 		if err != nil {
 			http.Error(w, "Unable to create new request", http.StatusInternalServerError)
@@ -113,7 +113,7 @@ func (svc *Service) HandlePatchRequestByID() http.HandlerFunc {
 			return
 		}
 		// Only update a request if its status is still pending
-		if request.Status != "Pending" {
+		if request.Status != types.StatusPending {
 			http.Error(w, "Request is already fulfilled", http.StatusBadRequest)
 			return
 		}
@@ -139,7 +139,7 @@ func (svc *Service) validateCreateRequest(newRequest *types.WhitelistRequest) (i
 	// Prevent new request from a approved or pending username
 	foundRequests, err := svc.dbService.GetRequests(-1, bson.M{
 		"username": newRequest.Username,
-		"status":   bson.M{"$in": []string{"Pending", "Approved", "Banned"}},
+		"status":   bson.M{"$in": []string{types.StatusPending, types.StatusApproved, types.StatusBanned}},
 	})
 	if err != nil {
 		svc.logger.WithFields(logrus.Fields{
@@ -151,15 +151,15 @@ func (svc *Service) validateCreateRequest(newRequest *types.WhitelistRequest) (i
 	if len(foundRequests) > 0 {
 		var message string
 		foundRequest := foundRequests[0]
-		if foundRequest.Status == "Approved" {
+		if foundRequest.Status == types.StatusApproved {
 			message = "The request associated with this username is already approved"
 			return http.StatusConflict, errors.New(message)
-		} else if foundRequest.Status == "Pending" {
+		} else if foundRequest.Status == types.StatusPending {
 			message = "There is a pending request associated with this username. " +
 				"You can not submit another request at this time. If you haven't received " +
 				"result within 24 hours, please contact admin"
 			return http.StatusUnprocessableEntity, errors.New(message)
-		} else if foundRequest.Status == "Banned" {
+		} else if foundRequest.Status == types.StatusBanned {
 			message = "The user has been banned from the server"
 			return http.StatusForbidden, errors.New(message)
 		}

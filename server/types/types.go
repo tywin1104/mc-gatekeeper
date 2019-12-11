@@ -6,6 +6,18 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+const (
+	StatusApproved    = "Approved"
+	StatusDenied      = "Denied"
+	StatusPending     = "Pending"
+	StatusBanned      = "Banned"
+	StatusDeactivated = "Deactivated"
+
+	OnserverWhitelisted = "Whitelisted"
+	OnserverNone        = "None"
+	OnserverBanned      = "Banned"
+)
+
 // WhitelistRequest represent a whitelist request issued by the requester player
 type WhitelistRequest struct {
 	ID                   primitive.ObjectID     `bson:"_id" json:"_id"`
