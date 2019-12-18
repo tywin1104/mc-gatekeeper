@@ -2,12 +2,11 @@ package watcher
 
 import (
 	"errors"
-	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/tywin1104/mc-gatekeeper/cache"
+	"github.com/tywin1104/mc-gatekeeper/broker"
 )
 
 // ValidateConfig will validate the config values at initial start and on each subsequent config change events
@@ -40,18 +39,8 @@ func WatchConfig(log *logrus.Logger) {
 	})
 }
 
-// AggregateStats will compute and update the cache value for aggregate stats periodically
-func AggregateStats(cache *cache.Service, log *logrus.Logger) {
-	for range time.Tick(60 * time.Second) {
-		go func() {
-			err := cache.UpdateAggregateStats()
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					"err": err.Error(),
-				}).Error("Unable to aggregate stats")
-			} else {
-				log.Info("Aggregate stats data completed")
-			}
-		}()
-	}
+// WatchForBrokerReconnect will monitor broker service for connection disruption and
+// re-establish a new connection and channel
+func WatchForBrokerReconnect(broker *broker.Service) {
+	broker.WatchForReconnect()
 }

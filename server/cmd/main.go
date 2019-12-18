@@ -49,12 +49,10 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(viper.GetString("mongodbConn")))
-
 	if err != nil {
 		log.Fatal("Unable to connect to mongodb: " + err.Error())
 	}
 	log.Info("Mongodb connection established")
-
 	// Setup database service
 	dbSvc := db.NewService(client)
 
@@ -67,27 +65,26 @@ func main() {
 	if err != nil {
 		log.Fatal("Unable to sync cache values: " + err.Error())
 	}
-	// Start background job to collect aggregate stats at a interval
-	go watcher.AggregateStats(cache, log)
-
-	// Set it running - listening and broadcasting events
+	// Start listening clients connections changes for SSE server and start broadcast stats events
 	go sseServer.Listen(cache.BroadcastStats)
 
 	broker := broker.NewService(log, make(chan *amqp.Error))
-	// Watch for unexpected connection loss to rabbitMQ and re-establish connection
-	go broker.WatchForReconnect()
 	defer broker.Close()
+	// Watch for unexpected connection loss to rabbitMQ and re-establish connection
+	go watcher.WatchForBrokerReconnect(broker)
 
 	wg := sync.WaitGroup{}
 	wg.Add(2)
+
 	// Start the worker
 	workerLogger := log.WithField("origin", "worker")
 	worker, err := worker.NewWorker(dbSvc, cache, workerLogger, make(chan *amqp.Error))
 	if err != nil {
 		log.Fatal("Unable to start worker: " + err.Error())
 	}
-	go worker.Start(&wg)
 	defer worker.Close()
+	go worker.Start(&wg)
+
 	// Setup and start the http REST API server
 	httpServer := server.NewService(dbSvc, broker, cache, sseServer, serverLogger)
 	go httpServer.Listen(viper.GetString("port"), &wg)

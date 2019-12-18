@@ -484,7 +484,7 @@ func (svc *Service) SyncStats() error {
 	return errors.New("Unable to sync cache. Give up")
 }
 
-// updateAgeGenderStats takes in a reuqest and make appropriate change to the stats
+// updateAgeGenderStats takes in a reuqest and changes for the age & geendeer related stats
 func updateAgeGenderStats(request types.WhitelistRequest, conn redis.Conn, delta int64) {
 	switch request.Gender {
 	case "male":

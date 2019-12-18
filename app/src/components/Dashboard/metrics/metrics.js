@@ -123,7 +123,7 @@ class Metrics extends React.Component {
     }
     return "";
   };
-
+  
   _getDivergentMsg = () => {
     if (this.state.stats != null && this.state.stats.aggregateStats != null) {
       let count = this.state.stats.aggregateStats.divergentCount;

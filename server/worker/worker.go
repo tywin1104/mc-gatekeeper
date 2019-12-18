@@ -148,6 +148,8 @@ func (worker *Worker) Start(wg *sync.WaitGroup) {
 	forever := make(chan bool)
 	// Set initial delivery channel from the initial connection
 	worker.updateDeliveryChannel()
+	// Start background job to collect aggregate stats at a interval
+	go worker.aggregateStats()
 	go worker.runLoop()
 	log.Info("Worker started. Listening for messages..")
 	wg.Done()
@@ -574,6 +576,24 @@ func (worker *Worker) issueRCON(command string) error {
 	}).Info("Command has been issued successfully on the game server")
 	return nil
 }
+
+// aggregateStats will compute and update the cache value for aggregate stats periodically
+func (worker *Worker) aggregateStats() {
+	log := worker.logger
+	for range time.Tick(60 * time.Second) {
+		go func() {
+			err := worker.cache.UpdateAggregateStats()
+			if err != nil {
+				log.WithFields(logrus.Fields{
+					"err": err.Error(),
+				}).Error("Unable to aggregate stats")
+			} else {
+				log.Info("Aggregate stats data completed")
+			}
+		}()
+	}
+}
+
 func deserialize(b []byte) (types.WhitelistRequest, error) {
 	var msg types.WhitelistRequest
 	buf := bytes.NewBuffer(b)
